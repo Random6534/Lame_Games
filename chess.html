@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess</title>
+<style>
+  :root {
+    --bg: #1b1e24; --panel: #252a33; --panel2: #2e3440; --text: #ebe7df; --muted: #9aa1ad;
+    --accent: #d9b26a; --good: #5fbf7a; --warn: #e0a640; --bad: #e0605a;
+    --light: #ecd8b6; --dark: #ae8a68; --sq: 64px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid #3c4452;
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #39414f; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1b1e24; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #e6c283; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
+    border-bottom: 1px solid #333a45; flex-wrap: wrap; }
+  #status { font-size: 18px; font-weight: 600; flex: 1; min-width: 180px; }
+  #status.yours { color: var(--accent); }
+  .hright { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #conn { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-right: 6px; }
+  #conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); display: inline-block; }
+  #conn.live i { background: var(--good); }
+  #conn.down i { background: var(--bad); }
+
+  main { display: flex; justify-content: center; align-items: flex-start; gap: 24px; padding: 16px; }
+  main.narrow { flex-direction: column; align-items: center; gap: 10px; }
+  .bar { display: flex; align-items: center; gap: 10px; height: 34px; width: calc(var(--sq) * 8); }
+  .bar .name { font-weight: 600; white-space: nowrap; }
+  .bar .name small { font-weight: 400; color: var(--muted); }
+  .bar .turn { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); visibility: hidden; flex: none; }
+  .bar .turn.on { visibility: visible; }
+  .bar .caps { font-size: 18px; letter-spacing: -2px; overflow: hidden; white-space: nowrap; }
+  .bar .caps .pc { font-size: 18px; }
+  .bar .adv { color: var(--muted); font-size: 13px; }
+
+  #board { display: grid; grid-template-columns: repeat(8, var(--sq)); grid-template-rows: repeat(8, var(--sq));
+    border-radius: 4px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.45); touch-action: none; user-select: none; }
+  .sq { position: relative; display: flex; align-items: center; justify-content: center; }
+  .sq.light { background: var(--light); }
+  .sq.dark { background: var(--dark); }
+  .sq.last::before, .sq.sel::before, .sq.check::before { content: ''; position: absolute; inset: 0; }
+  .sq.last::before { background: rgba(255, 215, 50, .38); }
+  .sq.sel::before { background: rgba(90, 160, 255, .42); }
+  .sq.check::before { background: radial-gradient(circle, rgba(255,40,40,.9) 0%, rgba(255,40,40,.5) 40%, rgba(255,40,40,0) 75%); }
+  .sq.dot::after { content: ''; position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgba(0,0,0,.22); z-index: 2; }
+  .sq.ring::after { content: ''; position: absolute; inset: 3%; border-radius: 50%;
+    border: calc(var(--sq) * .075) solid rgba(0,0,0,.24); z-index: 2; }
+  .coord { position: absolute; font-size: calc(var(--sq) * .18); font-weight: 600; z-index: 1; pointer-events: none; }
+  .coord.rk { top: 3px; left: 4px; }
+  .coord.fl { bottom: 2px; right: 4px; }
+  .light .coord { color: var(--dark); }
+  .dark .coord { color: var(--light); }
+
+  .pc { font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Apple Symbols", "DejaVu Sans", serif;
+    line-height: 1; position: relative; z-index: 1; pointer-events: none; }
+  #board .pc { font-size: calc(var(--sq) * .8); cursor: pointer; }
+  .pc.w { color: #fbfbf8; -webkit-text-stroke: 1.2px #1d1d1d; text-shadow: 0 2px 2px rgba(0,0,0,.35); }
+  .pc.b { color: #262321; -webkit-text-stroke: .6px #000; text-shadow: 0 2px 2px rgba(0,0,0,.25); }
+  #board .pc.lifted { opacity: .3; }
+  #ghost { position: fixed; z-index: 50; transform: translate(-50%, -55%); font-size: calc(var(--sq) * .9); pointer-events: none; }
+
+  aside { width: 230px; background: var(--panel); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; }
+  main.narrow aside { width: calc(var(--sq) * 8); max-height: 130px; }
+  aside h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  #moves { overflow-y: auto; font-size: 14px; flex: 1; }
+  #moves .row { display: grid; grid-template-columns: 34px 1fr 1fr; padding: 2px 4px; border-radius: 4px; }
+  #moves .row:nth-child(odd) { background: rgba(255,255,255,.03); }
+  #moves .n { color: var(--muted); }
+  #moves .cur { color: var(--accent); font-weight: 700; }
+  #moves .empty { color: var(--muted); font-style: italic; }
+
+  #modal { position: fixed; inset: 0; background: rgba(10,12,16,.6); display: flex; align-items: center;
+    justify-content: center; z-index: 100; padding: 16px; }
+  #modal[hidden] { display: none; }
+  .card { background: var(--panel); border: 1px solid #3a414d; border-radius: 10px; padding: 20px 22px;
+    max-width: 380px; width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .card h2 { margin: 0 0 8px; font-size: 20px; }
+  .card p { margin: 0 0 16px; color: var(--muted); line-height: 1.45; }
+  .card .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .card .btns.col { flex-direction: column; align-items: stretch; }
+  .card .promo { display: flex; gap: 8px; justify-content: center; }
+  .card .promo button { width: 64px; height: 64px; padding: 0; background: var(--light); }
+  .card .promo .pc { font-size: 48px; }
+</style>
+</head>
+<body>
+<header>
+  <div id="status">Connecting…</div>
+  <div class="hright">
+    <span id="conn"><i></i><span>Connecting</span></span>
+    <button id="seatBtn">Change side</button>
+    <button id="newBtn">New game</button>
+    <button id="resignBtn">Resign</button>
+  </div>
+</header>
+<main id="main">
+  <div>
+    <div class="bar" id="barTop"></div>
+    <div id="board"></div>
+    <div class="bar" id="barBot"></div>
+  </div>
+  <aside><h3>Moves</h3><div id="moves"></div></aside>
+</main>
+<span id="ghost" class="pc" hidden></span>
+<div id="modal" hidden><div class="card" id="card"></div></div>
+
+<script>
+// ================= ENGINE START =================
+const FILES = 'abcdefgh';
+const sqName = i => FILES[i & 7] + (8 - (i >> 3));
+const colorOf = p => p ? (p === p.toUpperCase() ? 'w' : 'b') : null;
+const onB = (r, f) => r >= 0 && r < 8 && f >= 0 && f < 8;
+const KN = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+const KG = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+const DIAG = [[1,1],[1,-1],[-1,1],[-1,-1]];
+const ORTH = [[1,0],[-1,0],[0,1],[0,-1]];
+
+function initPos() {
+  return {
+    b: [...'rnbqkbnr', ...'pppppppp', ...Array(32).fill(null), ...'PPPPPPPP', ...'RNBQKBNR'],
+    turn: 'w', castle: { K: true, Q: true, k: true, q: true }, ep: -1, half: 0, full: 1
+  };
+}
+
+function attacked(b, sq, by) {
+  const r = sq >> 3, f = sq & 7, W = by === 'w';
+  const P = W ? 'P' : 'p', N = W ? 'N' : 'n', K = W ? 'K' : 'k', B = W ? 'B' : 'b', R = W ? 'R' : 'r', Q = W ? 'Q' : 'q';
+  const pr = W ? r + 1 : r - 1;
+  for (const df of [-1, 1]) if (onB(pr, f + df) && b[pr * 8 + f + df] === P) return true;
+  for (const [dr, df] of KN) { const rr = r + dr, ff = f + df; if (onB(rr, ff) && b[rr * 8 + ff] === N) return true; }
+  for (const [dr, df] of KG) { const rr = r + dr, ff = f + df; if (onB(rr, ff) && b[rr * 8 + ff] === K) return true; }
+  for (const [dr, df] of DIAG) {
+    let rr = r + dr, ff = f + df;
+    while (onB(rr, ff)) { const p = b[rr * 8 + ff]; if (p) { if (p === B || p === Q) return true; break; } rr += dr; ff += df; }
+  }
+  for (const [dr, df] of ORTH) {
+    let rr = r + dr, ff = f + df;
+    while (onB(rr, ff)) { const p = b[rr * 8 + ff]; if (p) { if (p === R || p === Q) return true; break; } rr += dr; ff += df; }
+  }
+  return false;
+}
+
+const findKing = (b, c) => b.indexOf(c === 'w' ? 'K' : 'k');
+
+function pseudo(s) {
+  const out = [], b = s.b, me = s.turn, opp = me === 'w' ? 'b' : 'w';
+  for (let i = 0; i < 64; i++) {
+    const p = b[i];
+    if (!p || colorOf(p) !== me) continue;
+    const r = i >> 3, f = i & 7, t = p.toLowerCase();
+    const add = (to, extra) => out.push(Object.assign({ from: i, to }, extra || {}));
+    if (t === 'p') {
+      const dir = me === 'w' ? -1 : 1, start = me === 'w' ? 6 : 1, last = me === 'w' ? 0 : 7, r1 = r + dir;
+      const pushP = (to, extra) => {
+        if ((to >> 3) === last) for (const pr of 'qrbn') add(to, Object.assign({ promo: pr }, extra || {}));
+        else add(to, extra);
+      };
+      if (onB(r1, f) && !b[r1 * 8 + f]) {
+        pushP(r1 * 8 + f);
+        if (r === start && !b[(r + 2 * dir) * 8 + f]) add((r + 2 * dir) * 8 + f, { double: true });
+      }
+      for (const df of [-1, 1]) {
+        const ff = f + df;
+        if (!onB(r1, ff)) continue;
+        const to = r1 * 8 + ff;
+        if (b[to] && colorOf(b[to]) === opp) pushP(to);
+        else if (to === s.ep) add(to, { ep: true });
+      }
+    } else if (t === 'n' || t === 'k') {
+      for (const [dr, df] of (t === 'n' ? KN : KG)) {
+        const rr = r + dr, ff = f + df;
+        if (!onB(rr, ff)) continue;
+        const to = rr * 8 + ff;
+        if (!b[to] || colorOf(b[to]) === opp) add(to);
+      }
+      if (t === 'k') {
+        if (me === 'w' && i === 60) {
+          if (s.castle.K && !b[61] && !b[62] && b[63] === 'R' && !attacked(b, 60, opp) && !attacked(b, 61, opp) && !attacked(b, 62, opp)) add(62, { castle: 'K' });
+          if (s.castle.Q && !b[59] && !b[58] && !b[57] && b[56] === 'R' && !attacked(b, 60, opp) && !attacked(b, 59, opp) && !attacked(b, 58, opp)) add(58, { castle: 'Q' });
+        }
+        if (me === 'b' && i === 4) {
+          if (s.castle.k && !b[5] && !b[6] && b[7] === 'r' && !attacked(b, 4, opp) && !attacked(b, 5, opp) && !attacked(b, 6, opp)) add(6, { castle: 'K' });
+          if (s.castle.q && !b[3] && !b[2] && !b[1] && b[0] === 'r' && !attacked(b, 4, opp) && !attacked(b, 3, opp) && !attacked(b, 2, opp)) add(2, { castle: 'Q' });
+        }
+      }
+    } else {
+      const dirs = t === 'b' ? DIAG : t === 'r' ? ORTH : DIAG.concat(ORTH);
+      for (const [dr, df] of dirs) {
+        let rr = r + dr, ff = f + df;
+        while (onB(rr, ff)) {
+          const to = rr * 8 + ff;
+          if (b[to]) { if (colorOf(b[to]) === opp) add(to); break; }
+          add(to);
+          rr += dr; ff += df;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function play(s, m) {
+  const b = s.b.slice(), p = b[m.from], me = s.turn;
+  const cap = !!b[m.to] || !!m.ep;
+  b[m.to] = m.promo ? (me === 'w' ? m.promo.toUpperCase() : m.promo) : p;
+  b[m.from] = null;
+  if (m.ep) b[m.to + (me === 'w' ? 8 : -8)] = null;
+  if (m.castle) {
+    const moves = me === 'w' ? (m.castle === 'K' ? [63, 61] : [56, 59]) : (m.castle === 'K' ? [7, 5] : [0, 3]);
+    b[moves[1]] = b[moves[0]]; b[moves[0]] = null;
+  }
+  const c = Object.assign({}, s.castle);
+  if (p === 'K') { c.K = c.Q = false; }
+  if (p === 'k') { c.k = c.q = false; }
+  for (const sq of [m.from, m.to]) {
+    if (sq === 63) c.K = false;
+    if (sq === 56) c.Q = false;
+    if (sq === 7) c.k = false;
+    if (sq === 0) c.q = false;
+  }
+  return {
+    b, turn: me === 'w' ? 'b' : 'w', castle: c,
+    ep: m.double ? (m.from + m.to) / 2 : -1,
+    half: (p.toLowerCase() === 'p' || cap) ? 0 : s.half + 1,
+    full: s.full + (me === 'b' ? 1 : 0)
+  };
+}
+
+function legal(s) {
+  const opp = s.turn === 'w' ? 'b' : 'w';
+  return pseudo(s).filter(m => { const n = play(s, m); return !attacked(n.b, findKing(n.b, s.turn), opp); });
+}
+
+const uci = m => sqName(m.from) + sqName(m.to) + (m.promo || '');
+const inCheck = s => attacked(s.b, findKing(s.b, s.turn), s.turn === 'w' ? 'b' : 'w');
+
+function sanBase(s, m, L) {
+  if (m.castle) return m.castle === 'K' ? 'O-O' : 'O-O-O';
+  const p = s.b[m.from], t = p.toLowerCase(), cap = !!s.b[m.to] || !!m.ep;
+  if (t === 'p') return (cap ? FILES[m.from & 7] + 'x' : '') + sqName(m.to) + (m.promo ? '=' + m.promo.toUpperCase() : '');
+  const others = L.filter(o => o.to === m.to && o.from !== m.from && s.b[o.from] === p);
+  let dis = '';
+  if (others.length) {
+    const sameFile = others.some(o => (o.from & 7) === (m.from & 7));
+    const sameRank = others.some(o => (o.from >> 3) === (m.from >> 3));
+    dis = !sameFile ? FILES[m.from & 7] : !sameRank ? sqName(m.from)[1] : sqName(m.from);
+  }
+  return t.toUpperCase() + dis + (cap ? 'x' : '') + sqName(m.to);
+}
+
+const posKey = s => s.b.map(p => p || '.').join('') + s.turn +
+  (s.castle.K ? 'K' : '') + (s.castle.Q ? 'Q' : '') + (s.castle.k ? 'k' : '') + (s.castle.q ? 'q' : '') + s.ep;
+
+function replay(moves) {
+  let s = initPos(), L = legal(s), count = 0;
+  const hist = [], reps = { [posKey(s)]: 1 };
+  for (const u of moves) {
+    const m = L.find(x => uci(x) === u);
+    if (!m) break;
+    let san = sanBase(s, m, L);
+    s = play(s, m);
+    L = legal(s);
+    if (inCheck(s)) san += L.length ? '+' : '#';
+    hist.push({ san, from: m.from, to: m.to });
+    const k = posKey(s); reps[k] = (reps[k] || 0) + 1;
+    count++;
+  }
+  return { s, L, hist, rep: reps[posKey(s)], count, valid: count === moves.length };
+}
+
+function insufficient(b) {
+  const rest = b.filter(p => p && p.toLowerCase() !== 'k');
+  return rest.length === 0 || (rest.length === 1 && 'nbNB'.includes(rest[0]));
+}
+
+function outcome(state, g) {
+  const name = c => c === 'w' ? 'White' : 'Black';
+  if (state.result && state.result.type === 'resign') {
+    const by = state.result.by;
+    return { over: true, text: `${name(by)} resigned. ${name(by === 'w' ? 'b' : 'w')} wins.` };
+  }
+  const s = g.s;
+  if (!g.L.length) return inCheck(s)
+    ? { over: true, text: `Checkmate! ${name(s.turn === 'w' ? 'b' : 'w')} wins.` }
+    : { over: true, text: 'Stalemate. It’s a draw.' };
+  if (s.half >= 100) return { over: true, text: 'Draw by the 50-move rule.' };
+  if (g.rep >= 3) return { over: true, text: 'Draw by threefold repetition.' };
+  if (insufficient(s.b)) return { over: true, text: 'Draw. Not enough pieces left to checkmate.' };
+  return { over: false };
+}
+// ================= ENGINE END =================
+
+(() => {
+  // ---------- sync settings ----------
+  // Moves are relayed through ntfy.sh, a free public message service. No account needed.
+  const BASE = 'https://ntfy.sh';
+  const SALT = 'nmc-chess-7q3kz9';
+  const params = new URLSearchParams(location.search);
+  const KEY = SALT + '|' + location.host + location.pathname.replace(/\/?(index\.html)?$/, '') + '|' + (params.get('g') || '');
+  const fnv = (str, seed) => { let h = seed >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); };
+  const TOPIC = 'tchess-' + fnv(KEY, 2166136261) + fnv(KEY, 0x9e3779b9);
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  let CID = store.get('tchess-cid');
+  if (!CID) { CID = Math.random().toString(36).slice(2, 12); store.set('tchess-cid', CID); }
+  const STATE_KEY = 'tchess-state-' + TOPIC, WATCH_KEY = 'tchess-watch-' + TOPIC;
+
+  const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+  const G = t => GLYPH[t] + '︎';
+
+  // ---------- state ----------
+  const blank = () => ({ v: 1, seq: 0, moves: [], seats: { w: null, b: null }, result: null });
+  const norm = o => ({
+    v: 1, seq: +o.seq || 0,
+    moves: Array.isArray(o.moves) ? o.moves.filter(x => typeof x === 'string').slice(0, 1000) : [],
+    seats: { w: (o.seats && o.seats.w) || null, b: (o.seats && o.seats.b) || null },
+    result: o.result && o.result.type === 'resign' && (o.result.by === 'w' || o.result.by === 'b') ? { type: 'resign', by: o.result.by } : null
+  });
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const newer = (a, b) => a.seq !== b.seq ? a.seq > b.seq : JSON.stringify(a) > JSON.stringify(b);
+
+  let state = blank();
+  try { const saved = store.get(STATE_KEY); if (saved) state = norm(JSON.parse(saved)); } catch (e) {}
+  let game = replay(state.moves);
+  let watching = store.get(WATCH_KEY) === '1';
+  let loaded = false, sel = -1, drag = null, modalOpen = false, conn = 'connecting', sending = false;
+  let lastMsgId = null, seenMoves = state.moves.length;
+
+  const myColor = () => state.seats.w === CID ? 'w' : state.seats.b === CID ? 'b' : null;
+
+  function apply(ns, publish) {
+    state = norm(ns);
+    game = replay(state.moves);
+    if (!game.valid) state.moves = state.moves.slice(0, game.count);
+    store.set(STATE_KEY, JSON.stringify(state));
+    if (sel >= 0 && !game.L.some(m => m.from === sel)) sel = -1;
+    if (state.moves.length > seenMoves && document.hidden && game.s.turn === myColor()) document.title = '● Your move — Chess';
+    seenMoves = state.moves.length;
+    render();
+    if (publish) send();
+  }
+
+  function receive(o) {
+    let n;
+    try { n = norm(o); } catch (e) { return; }
+    if (newer(n, state)) apply(n, false);
+  }
+
+  // ---------- network ----------
+  async function send() {
+    const mine = state;
+    sending = true; render();
+    try {
+      const r = await fetch(`${BASE}/${TOPIC}`, { method: 'POST', body: JSON.stringify(mine) });
+      if (!r.ok) throw new Error(r.status);
+      sending = false; render();
+    } catch (e) {
+      setConn('down');
+      setTimeout(() => { if (state === mine) send(); else { sending = false; render(); } }, 3000);
+    }
+  }
+
+  async function poll() {
+    try {
+      const since = lastMsgId || 'all';
+      const r = await fetch(`${BASE}/${TOPIC}/json?poll=1&since=${encodeURIComponent(since)}`);
+      if (!r.ok) throw new Error(r.status);
+      const text = await r.text();
+      let best = null, any = false;
+      for (const line of text.split('\n')) {
+        if (!line.trim()) continue;
+        let m; try { m = JSON.parse(line); } catch (e) { continue; }
+        if (m.event !== 'message') continue;
+        any = true; lastMsgId = m.id;
+        let o; try { o = norm(JSON.parse(m.message)); } catch (e) { continue; }
+        if (!best || newer(o, best)) best = o;
+      }
+      if (best) receive(best);
+      // Server forgot the game (messages expire after a while): re-share our saved copy
+      if (!any && since === 'all' && state.seq > 0) send();
+      if (conn !== 'live') setConn('live');
+      return true;
+    } catch (e) {
+      setConn('down');
+      return false;
+    } finally {
+      if (!loaded) { loaded = true; render(); }
+    }
+  }
+
+  function connect() {
+    let es;
+    try { es = new EventSource(`${BASE}/${TOPIC}/sse`); } catch (e) { setConn('down'); return; }
+    es.onopen = () => { setConn('live'); poll(); };
+    es.onmessage = e => {
+      try {
+        const m = JSON.parse(e.data);
+        if (m.event !== 'message') return;
+        lastMsgId = m.id;
+        receive(JSON.parse(m.message));
+      } catch (err) {}
+    };
+    es.onerror = () => setConn(conn === 'live' ? 'connecting' : conn);
+  }
+
+  function setConn(c) {
+    conn = c;
+    const el = document.getElementById('conn');
+    el.className = c === 'live' ? 'live' : c === 'down' ? 'down' : '';
+    el.querySelector('span').textContent = c === 'live' ? 'Live' : c === 'down' ? 'Can’t reach server' : 'Connecting';
+    el.title = c === 'down' ? 'Can’t reach ntfy.sh. Your network may be blocking it.' : '';
+  }
+
+  // ---------- moves ----------
+  function commit(m) {
+    sel = -1;
+    const ns = clone(state);
+    ns.moves.push(uci(m));
+    ns.seq++;
+    apply(ns, true);
+  }
+
+  function tryMove(ms) {
+    if (ms.length > 1) return promoPicker(ms);
+    commit(ms[0]);
+  }
+
+  function canMoveNow() {
+    const me = myColor();
+    return loaded && me && !outcome(state, game).over && game.s.turn === me;
+  }
+
+  // ---------- board input (click or drag) ----------
+  const boardEl = document.getElementById('board');
+  const ghost = document.getElementById('ghost');
+
+  function squareAt(x, y) {
+    const r = boardEl.getBoundingClientRect();
+    const c = Math.floor((x - r.left) / (r.width / 8)), rr = Math.floor((y - r.top) / (r.height / 8));
+    if (c < 0 || c > 7 || rr < 0 || rr > 7) return -1;
+    return myColor() === 'b' ? (7 - rr) * 8 + (7 - c) : rr * 8 + c;
+  }
+
+  boardEl.addEventListener('pointerdown', e => {
+    const i = squareAt(e.clientX, e.clientY);
+    if (i < 0) return;
+    if (!canMoveNow()) { sel = -1; render(); return; }
+    if (sel >= 0) {
+      const ms = game.L.filter(m => m.from === sel && m.to === i);
+      if (ms.length) { tryMove(ms); return; }
+    }
+    const p = game.s.b[i];
+    if (p && colorOf(p) === myColor()) {
+      drag = { from: i, x0: e.clientX, y0: e.clientY, moved: false, wasSel: sel === i };
+      sel = i;
+      boardEl.setPointerCapture(e.pointerId);
+    } else sel = -1;
+    render();
+  });
+
+  boardEl.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 5) {
+      drag.moved = true;
+      ghost.textContent = G(game.s.b[drag.from].toLowerCase());
+      ghost.className = 'pc ' + myColor();
+      ghost.hidden = false;
+      render();
+    }
+    if (drag.moved) { ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px'; }
+  });
+
+  boardEl.addEventListener('pointerup', e => {
+    if (!drag) return;
+    const d = drag; drag = null; ghost.hidden = true;
+    if (d.moved) {
+      const i = squareAt(e.clientX, e.clientY);
+      const ms = game.L.filter(m => m.from === d.from && m.to === i);
+      if (ms.length) { tryMove(ms); return; }
+    } else if (d.wasSel) sel = -1;
+    render();
+  });
+  boardEl.addEventListener('pointercancel', () => { drag = null; ghost.hidden = true; render(); });
+
+  // ---------- modals ----------
+  const modal = document.getElementById('modal'), card = document.getElementById('card');
+  function showModal(title, text, buttons, opts) {
+    opts = opts || {};
+    card.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = title; card.appendChild(h);
+    if (text) { const p = document.createElement('p'); p.textContent = text; card.appendChild(p); }
+    if (opts.content) card.appendChild(opts.content);
+    if (buttons && buttons.length) {
+      const row = document.createElement('div'); row.className = 'btns' + (opts.column ? ' col' : '');
+      for (const b of buttons) {
+        const el = document.createElement('button');
+        el.textContent = b.label;
+        if (b.primary) el.className = 'primary';
+        if (b.disabled) el.disabled = true;
+        el.onclick = () => { closeModal(); if (b.onClick) b.onClick(); };
+        row.appendChild(el);
+      }
+      card.appendChild(row);
+    }
+    modal.hidden = false; modalOpen = true;
+  }
+  function closeModal() { modal.hidden = true; modalOpen = false; setTimeout(render, 0); }
+
+  function promoPicker(ms) {
+    const wrap = document.createElement('div'); wrap.className = 'promo';
+    for (const t of ['q', 'r', 'b', 'n']) {
+      const m = ms.find(x => x.promo === t);
+      const btn = document.createElement('button');
+      btn.innerHTML = `<span class="pc ${myColor()}">${G(t)}</span>`;
+      btn.onclick = () => { closeModal(); commit(m); };
+      wrap.appendChild(btn);
+    }
+    showModal('Promote your pawn', 'Pick a piece.', [{ label: 'Cancel', onClick: () => { sel = -1; } }], { content: wrap });
+  }
+
+  function takeSeat(c) {
+    const ns = clone(state);
+    for (const k of ['w', 'b']) if (ns.seats[k] === CID) ns.seats[k] = null;
+    ns.seats[c] = CID;
+    ns.seq++;
+    watching = false; store.set(WATCH_KEY, '0');
+    apply(ns, true);
+  }
+
+  function seatPicker() {
+    const taken = c => state.seats[c] && state.seats[c] !== CID;
+    const pick = c => {
+      if (taken(c)) {
+        showModal(`${c === 'w' ? 'White' : 'Black'} is taken`,
+          'Someone already sits there. Take over only if that was you on another computer.',
+          [{ label: 'Back', onClick: seatPicker }, { label: 'Take over', primary: true, onClick: () => takeSeat(c) }]);
+      } else takeSeat(c);
+    };
+    showModal('Pick your side', 'Your coworker opens this same tab and picks the other side.', [
+      { label: 'Play White' + (taken('w') ? ' (taken)' : ''), primary: !taken('w'), onClick: () => pick('w') },
+      { label: 'Play Black' + (taken('b') ? ' (taken)' : ''), primary: taken('w') && !taken('b'), onClick: () => pick('b') },
+      { label: 'Just watch', onClick: () => { watching = true; store.set(WATCH_KEY, '1'); } }
+    ], { column: true });
+  }
+
+  document.getElementById('seatBtn').onclick = seatPicker;
+  document.getElementById('newBtn').onclick = () => {
+    showModal('Start a new game?', 'This clears the board for both of you.', [
+      { label: 'Cancel' },
+      { label: 'Same colors', onClick: () => newGame(false) },
+      { label: 'Swap colors', primary: true, onClick: () => newGame(true) }
+    ]);
+  };
+  function newGame(swap) {
+    const ns = clone(state);
+    ns.moves = []; ns.result = null; ns.seq++;
+    if (swap) ns.seats = { w: state.seats.b, b: state.seats.w };
+    sel = -1;
+    apply(ns, true);
+  }
+  document.getElementById('resignBtn').onclick = () => {
+    showModal('Resign this game?', 'Your opponent wins.', [
+      { label: 'Cancel' },
+      { label: 'Resign', primary: true, onClick: () => {
+        const me = myColor(); if (!me) return;
+        const ns = clone(state); ns.result = { type: 'resign', by: me }; ns.seq++; apply(ns, true);
+      } }
+    ]);
+  };
+
+  // ---------- rendering ----------
+  const main = document.getElementById('main');
+  function layout() {
+    const headerH = document.querySelector('header').offsetHeight;
+    const wide = innerWidth >= 780;
+    main.classList.toggle('narrow', !wide);
+    const availW = innerWidth - 32 - (wide ? 230 + 24 : 0);
+    const availH = innerHeight - headerH - 32 - 68 - (wide ? 0 : 150);
+    const sq = Math.max(30, Math.min(100, Math.floor(Math.min(availW, availH) / 8)));
+    document.documentElement.style.setProperty('--sq', sq + 'px');
+  }
+  addEventListener('resize', () => { layout(); render(); });
+
+  function captures(b) {
+    const start = { q: 1, r: 2, b: 2, n: 2, p: 8 }, val = { q: 9, r: 5, b: 3, n: 3, p: 1 };
+    const cnt = { w: { q: 0, r: 0, b: 0, n: 0, p: 0 }, b: { q: 0, r: 0, b: 0, n: 0, p: 0 } };
+    for (const p of b) if (p && p.toLowerCase() !== 'k') cnt[colorOf(p)][p.toLowerCase()]++;
+    const lost = { w: [], b: [] }, mat = { w: 0, b: 0 };
+    for (const c of ['w', 'b']) for (const t of ['q', 'r', 'b', 'n', 'p']) {
+      for (let i = 0; i < Math.max(0, start[t] - cnt[c][t]); i++) lost[c].push(t);
+      mat[c] += cnt[c][t] * val[t];
+    }
+    return { lost, mat };
+  }
+
+  function renderBar(el, c, out) {
+    const name = c === 'w' ? 'White' : 'Black', opp = c === 'w' ? 'b' : 'w';
+    const seat = state.seats[c];
+    const who = seat === CID ? ' <small>(you)</small>' : seat ? '' : ' <small>(open seat)</small>';
+    const cap = captures(game.s.b);
+    const adv = cap.mat[c] - cap.mat[opp];
+    el.innerHTML = `<span class="turn ${!out.over && game.s.turn === c ? 'on' : ''}"></span>` +
+      `<span class="name">${name}${who}</span>` +
+      `<span class="caps">${cap.lost[opp].map(t => `<span class="pc ${opp}">${G(t)}</span>`).join('')}</span>` +
+      (adv > 0 ? `<span class="adv">+${adv}</span>` : '');
+  }
+
+  function render() {
+    const s = game.s, me = myColor(), flip = me === 'b', out = outcome(state, game);
+    const fromSel = sel >= 0 ? game.L.filter(m => m.from === sel) : [];
+    const last = game.hist[game.hist.length - 1];
+    const checkSq = inCheck(s) ? findKing(s.b, s.turn) : -1;
+
+    boardEl.innerHTML = '';
+    for (let vr = 0; vr < 8; vr++) for (let vc = 0; vc < 8; vc++) {
+      const i = flip ? (7 - vr) * 8 + (7 - vc) : vr * 8 + vc, r = i >> 3, f = i & 7;
+      const d = document.createElement('div');
+      d.className = 'sq ' + ((r + f) % 2 ? 'dark' : 'light');
+      if (last && (i === last.from || i === last.to)) d.classList.add('last');
+      if (i === sel) d.classList.add('sel');
+      if (i === checkSq) d.classList.add('check');
+      const tgt = fromSel.find(m => m.to === i);
+      if (tgt) d.classList.add(s.b[i] || tgt.ep ? 'ring' : 'dot');
+      const p = s.b[i];
+      if (p) {
+        const sp = document.createElement('span');
+        sp.className = 'pc ' + colorOf(p) + (drag && drag.moved && drag.from === i ? ' lifted' : '');
+        sp.textContent = G(p.toLowerCase());
+        d.appendChild(sp);
+      }
+      if (vc === 0) { const t = document.createElement('span'); t.className = 'coord rk'; t.textContent = 8 - r; d.appendChild(t); }
+      if (vr === 7) { const t = document.createElement('span'); t.className = 'coord fl'; t.textContent = FILES[f]; d.appendChild(t); }
+      boardEl.appendChild(d);
+    }
+
+    const top = flip ? 'w' : 'b', bot = flip ? 'b' : 'w';
+    renderBar(document.getElementById('barTop'), top, out);
+    renderBar(document.getElementById('barBot'), bot, out);
+
+    // status line
+    const st = document.getElementById('status');
+    const nm = c => c === 'w' ? 'White' : 'Black';
+    let text, yours = false;
+    if (!loaded) text = 'Connecting…';
+    else if (out.over) text = out.text;
+    else if (!me) text = `${nm(s.turn)} to move` + (watching ? ' (watching)' : '');
+    else if (s.turn === me) { text = inCheck(s) ? 'Your move. You’re in check!' : 'Your move'; yours = true; }
+    else {
+      const opp = me === 'w' ? 'b' : 'w';
+      text = state.seats[opp] ? `Waiting for ${nm(opp)}…` : `Waiting for someone to join as ${nm(opp)}…`;
+    }
+    if (sending) text += '  (sending…)';
+    st.textContent = text;
+    st.classList.toggle('yours', yours);
+
+    // moves list
+    const mv = document.getElementById('moves');
+    if (!game.hist.length) mv.innerHTML = '<div class="empty">No moves yet</div>';
+    else {
+      let html = '';
+      for (let i = 0; i < game.hist.length; i += 2) {
+        const a = game.hist[i], b = game.hist[i + 1], lastI = game.hist.length - 1;
+        html += `<div class="row"><span class="n">${i / 2 + 1}.</span>` +
+          `<span class="${i === lastI ? 'cur' : ''}">${a.san}</span>` +
+          `<span class="${i + 1 === lastI ? 'cur' : ''}">${b ? b.san : ''}</span></div>`;
+      }
+      mv.innerHTML = html;
+      mv.scrollTop = mv.scrollHeight;
+    }
+
+    document.getElementById('resignBtn').disabled = !me || out.over || !loaded;
+    document.getElementById('newBtn').disabled = !loaded;
+
+    if (loaded && !me && !watching && !modalOpen) seatPicker();
+  }
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'Chess'; });
+
+  // ---------- start ----------
+  layout();
+  render();
+  poll();
+  connect();
+  // Backup check in case live updates get blocked by a proxy
+  setInterval(() => { if (!document.hidden) poll(); }, 20000);
+})();
+</script>
+</body>
+</html>
