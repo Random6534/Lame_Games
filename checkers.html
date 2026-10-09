@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkers</title>
+<style>
+  :root {
+    --bg: #1b1e24; --panel: #252a33; --panel2: #2e3440; --text: #ebe7df; --muted: #9aa1ad;
+    --accent: #d9b26a; --good: #5fbf7a; --warn: #e0a640; --bad: #e0605a;
+    --light: #ecd8b6; --dark: #8a6446; --sq: 64px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid #3c4452;
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #39414f; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #1b1e24; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #e6c283; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
+    border-bottom: 1px solid #333a45; flex-wrap: wrap; }
+  .back { color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px;
+    border-radius: 6px; background: var(--panel2); border: 1px solid #3c4452; }
+  .back:hover { background: #39414f; }
+  #status { font-size: 18px; font-weight: 600; flex: 1; min-width: 180px; }
+  #status.yours { color: var(--accent); }
+  .hright { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #conn { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-right: 6px; }
+  #conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); display: inline-block; }
+  #conn.live i { background: var(--good); }
+  #conn.down i { background: var(--bad); }
+
+  main { display: flex; justify-content: center; align-items: flex-start; gap: 24px; padding: 16px; }
+  main.narrow { flex-direction: column; align-items: center; gap: 10px; }
+  .bar { display: flex; align-items: center; gap: 10px; height: 34px; width: calc(var(--sq) * 8); }
+  .bar .name { font-weight: 600; white-space: nowrap; }
+  .bar .name small { font-weight: 400; color: var(--muted); }
+  .bar .turn { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); visibility: hidden; flex: none; }
+  .bar .turn.on { visibility: visible; }
+  .bar .caps { display: flex; gap: 2px; overflow: hidden; }
+  .bar .caps i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .bar .left { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+  #board { display: grid; grid-template-columns: repeat(8, var(--sq)); grid-template-rows: repeat(8, var(--sq));
+    border-radius: 4px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.45); touch-action: none; user-select: none; }
+  .sq { position: relative; display: flex; align-items: center; justify-content: center; }
+  .sq.light { background: var(--light); }
+  .sq.dark { background: var(--dark); cursor: pointer; }
+  .sq.last::before, .sq.sel::before, .sq.path::before { content: ''; position: absolute; inset: 0; }
+  .sq.last::before { background: rgba(255, 215, 50, .28); }
+  .sq.path::before { background: rgba(90, 160, 255, .25); }
+  .sq.sel::before { background: rgba(90, 160, 255, .45); }
+  .sq.dot::after { content: ''; position: absolute; width: 30%; height: 30%; border-radius: 50%; background: rgba(255,255,255,.35); z-index: 2; }
+  .sq.must .disc { box-shadow: 0 0 0 3px var(--accent), 0 3px 4px rgba(0,0,0,.4); }
+
+  .disc { width: 78%; height: 78%; border-radius: 50%; position: relative; z-index: 1; display: flex;
+    align-items: center; justify-content: center; box-shadow: 0 3px 4px rgba(0,0,0,.4); }
+  .disc.r { background: radial-gradient(circle at 50% 45%, #e0574a 0 52%, #b9372c 53% 60%, #d84b3e 61% 100%); border: 2px solid #8e2a22; }
+  .disc.b { background: radial-gradient(circle at 50% 45%, #3a3633 0 52%, #1b1918 53% 60%, #322e2b 61% 100%); border: 2px solid #0d0c0b; }
+  .disc .crown { font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif; font-size: calc(var(--sq) * .38);
+    color: #f2c94c; text-shadow: 0 1px 1px rgba(0,0,0,.6); line-height: 1; }
+
+  aside { width: 230px; background: var(--panel); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; }
+  main.narrow aside { width: calc(var(--sq) * 8); max-height: 130px; }
+  aside h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  #moves { overflow-y: auto; font-size: 14px; flex: 1; }
+  #moves .row { display: grid; grid-template-columns: 34px 1fr 1fr; padding: 2px 4px; border-radius: 4px; }
+  #moves .row:nth-child(odd) { background: rgba(255,255,255,.03); }
+  #moves .n { color: var(--muted); }
+  #moves .cur { color: var(--accent); font-weight: 700; }
+  #moves .empty { color: var(--muted); font-style: italic; }
+
+  #modal { position: fixed; inset: 0; background: rgba(10,12,16,.6); display: flex; align-items: center;
+    justify-content: center; z-index: 100; padding: 16px; }
+  #modal[hidden] { display: none; }
+  .card { background: var(--panel); border: 1px solid #3a414d; border-radius: 10px; padding: 20px 22px;
+    max-width: 380px; width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .card h2 { margin: 0 0 8px; font-size: 20px; }
+  .card p { margin: 0 0 16px; color: var(--muted); line-height: 1.45; }
+  .card .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .card .btns.col { flex-direction: column; align-items: stretch; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="./">&larr; Games</a>
+  <div id="status">Connecting…</div>
+  <div class="hright">
+    <span id="conn"><i></i><span>Connecting</span></span>
+    <button id="seatBtn">Change side</button>
+    <button id="newBtn">New game</button>
+    <button id="resignBtn">Resign</button>
+  </div>
+</header>
+<main id="main">
+  <div>
+    <div class="bar" id="barTop"></div>
+    <div id="board"></div>
+    <div class="bar" id="barBot"></div>
+  </div>
+  <aside><h3>Moves</h3><div id="moves"></div></aside>
+</main>
+<div id="modal" hidden><div class="card" id="card"></div></div>
+
+<script>
+// ================= ENGINE START =================
+// American checkers: Black moves first, captures are mandatory, multi-jumps must be finished,
+// men move forward only, a man that reaches the far row becomes a king (and its turn ends).
+const onB = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
+const sideOf = p => p ? p.toLowerCase() : null;          // 'b' or 'r'
+const isKing = p => p === 'B' || p === 'R';
+const kingRow = side => side === 'b' ? 7 : 0;
+const dirsOf = p => isKing(p) ? [[1,-1],[1,1],[-1,-1],[-1,1]] : sideOf(p) === 'b' ? [[1,-1],[1,1]] : [[-1,-1],[-1,1]];
+const num = i => (i >> 3) * 4 + ((i & 7) >> 1) + 1;     // standard 1-32 square numbers
+
+function initPos() {
+  const b = Array(64).fill(null);
+  for (let i = 0; i < 64; i++) {
+    const r = i >> 3, c = i & 7;
+    if ((r + c) % 2 !== 1) continue;
+    if (r <= 2) b[i] = 'b';
+    if (r >= 5) b[i] = 'r';
+  }
+  return { b, turn: 'b', quiet: 0 };
+}
+
+function jumpsFrom(b, sq) {
+  const piece = b[sq], out = [];
+  (function dfs(cur, bb, path, caps) {
+    let extended = false;
+    for (const [dr, dc] of dirsOf(piece)) {
+      const r = cur >> 3, c = cur & 7, tr = r + 2 * dr, tc = c + 2 * dc;
+      if (!onB(tr, tc)) continue;
+      const mid = (r + dr) * 8 + (c + dc), to = tr * 8 + tc;
+      if (bb[mid] && sideOf(bb[mid]) !== sideOf(piece) && !caps.includes(mid) && !bb[to]) {
+        extended = true;
+        const nb = bb.slice(); nb[cur] = null; nb[to] = piece;
+        const np = path.concat(to), nc = caps.concat(mid);
+        if (!isKing(piece) && tr === kingRow(sideOf(piece))) out.push({ path: np, caps: nc });
+        else dfs(to, nb, np, nc);
+      }
+    }
+    if (!extended && path.length > 1) out.push({ path, caps });
+  })(sq, b, [sq], []);
+  return out;
+}
+
+function legal(s) {
+  const jumps = [], steps = [];
+  for (let i = 0; i < 64; i++) {
+    if (sideOf(s.b[i]) !== s.turn) continue;
+    jumps.push(...jumpsFrom(s.b, i));
+    if (jumps.length) continue;
+    for (const [dr, dc] of dirsOf(s.b[i])) {
+      const r = (i >> 3) + dr, c = (i & 7) + dc;
+      if (onB(r, c) && !s.b[r * 8 + c]) steps.push({ path: [i, r * 8 + c], caps: [] });
+    }
+  }
+  return jumps.length ? jumps : steps;
+}
+
+function play(s, m) {
+  const b = s.b.slice(), from = m.path[0], to = m.path[m.path.length - 1];
+  let p = b[from];
+  b[from] = null;
+  for (const c of m.caps) b[c] = null;
+  if (!isKing(p) && (to >> 3) === kingRow(sideOf(p))) p = p.toUpperCase();
+  b[to] = p;
+  const quiet = (m.caps.length || !isKing(s.b[from])) ? 0 : s.quiet + 1;
+  return { b, turn: s.turn === 'b' ? 'r' : 'b', quiet };
+}
+
+const keyOf = m => m.path.join('-');
+const label = m => m.path.map(num).join(m.caps.length ? 'x' : '-');
+
+function replay(moves) {
+  let s = initPos(), L = legal(s), count = 0;
+  const hist = [];
+  for (const k of moves) {
+    const m = L.find(x => keyOf(x) === k);
+    if (!m) break;
+    hist.push({ text: label(m), path: m.path });
+    s = play(s, m);
+    L = legal(s);
+    count++;
+  }
+  return { s, L, hist, count, valid: count === moves.length };
+}
+
+function outcome(state, g) {
+  const name = c => c === 'b' ? 'Black' : 'Red';
+  if (state.result && state.result.type === 'resign') {
+    const by = state.result.by;
+    return { over: true, text: `${name(by)} resigned. ${name(by === 'b' ? 'r' : 'b')} wins.` };
+  }
+  if (!g.L.length) {
+    const left = g.s.b.some(p => sideOf(p) === g.s.turn);
+    return { over: true, text: `${name(g.s.turn === 'b' ? 'r' : 'b')} wins!` + (left ? ` ${name(g.s.turn)} has no moves left.` : '') };
+  }
+  if (g.s.quiet >= 80) return { over: true, text: 'Draw. 40 moves each with only kings moving and no captures.' };
+  return { over: false };
+}
+// ================= ENGINE END =================
+
+(() => {
+  // Moves are relayed through ntfy.sh, a free public message service. No account needed.
+  const BASE = 'https://ntfy.sh';
+  const SALT = 'nmc-checkers-4m8xq2';
+  const params = new URLSearchParams(location.search);
+  const KEY = SALT + '|' + location.host + location.pathname.replace(/\/?(index\.html)?$/, '') + '|' + (params.get('g') || '');
+  const fnv = (str, seed) => { let h = seed >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); };
+  const TOPIC = 'tcheck-' + fnv(KEY, 2166136261) + fnv(KEY, 0x9e3779b9);
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  let CID = store.get('tchess-cid');
+  if (!CID) { CID = Math.random().toString(36).slice(2, 12); store.set('tchess-cid', CID); }
+  const STATE_KEY = 'tcheck-state-' + TOPIC, WATCH_KEY = 'tcheck-watch-' + TOPIC;
+
+  const blank = () => ({ v: 1, seq: 0, moves: [], seats: { b: null, r: null }, result: null });
+  const norm = o => ({
+    v: 1, seq: +o.seq || 0,
+    moves: Array.isArray(o.moves) ? o.moves.filter(x => typeof x === 'string').slice(0, 1000) : [],
+    seats: { b: (o.seats && o.seats.b) || null, r: (o.seats && o.seats.r) || null },
+    result: o.result && o.result.type === 'resign' && (o.result.by === 'b' || o.result.by === 'r') ? { type: 'resign', by: o.result.by } : null
+  });
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const newer = (a, b) => a.seq !== b.seq ? a.seq > b.seq : JSON.stringify(a) > JSON.stringify(b);
+  const nm = c => c === 'b' ? 'Black' : 'Red';
+
+  let state = blank();
+  try { const saved = store.get(STATE_KEY); if (saved) state = norm(JSON.parse(saved)); } catch (e) {}
+  let game = replay(state.moves);
+  let watching = store.get(WATCH_KEY) === '1';
+  let loaded = false, selPath = [], modalOpen = false, conn = 'connecting', sending = false;
+  let lastMsgId = null, seenMoves = state.moves.length;
+
+  const myColor = () => state.seats.b === CID ? 'b' : state.seats.r === CID ? 'r' : null;
+
+  function apply(ns, publish) {
+    state = norm(ns);
+    game = replay(state.moves);
+    if (!game.valid) state.moves = state.moves.slice(0, game.count);
+    store.set(STATE_KEY, JSON.stringify(state));
+    selPath = [];
+    if (state.moves.length > seenMoves && document.hidden && game.s.turn === myColor()) document.title = '● Your move — Checkers';
+    seenMoves = state.moves.length;
+    render();
+    if (publish) send();
+  }
+
+  function receive(o) {
+    let n;
+    try { n = norm(o); } catch (e) { return; }
+    if (newer(n, state)) apply(n, false);
+  }
+
+  // ---------- network ----------
+  async function send() {
+    const mine = state;
+    sending = true; render();
+    try {
+      const r = await fetch(`${BASE}/${TOPIC}`, { method: 'POST', body: JSON.stringify(mine) });
+      if (!r.ok) throw new Error(r.status);
+      sending = false; render();
+    } catch (e) {
+      setConn('down');
+      setTimeout(() => { if (state === mine) send(); else { sending = false; render(); } }, 3000);
+    }
+  }
+
+  async function poll() {
+    try {
+      const since = lastMsgId || 'all';
+      const r = await fetch(`${BASE}/${TOPIC}/json?poll=1&since=${encodeURIComponent(since)}`);
+      if (!r.ok) throw new Error(r.status);
+      const text = await r.text();
+      let best = null, any = false;
+      for (const line of text.split('\n')) {
+        if (!line.trim()) continue;
+        let m; try { m = JSON.parse(line); } catch (e) { continue; }
+        if (m.event !== 'message') continue;
+        any = true; lastMsgId = m.id;
+        let o; try { o = norm(JSON.parse(m.message)); } catch (e) { continue; }
+        if (!best || newer(o, best)) best = o;
+      }
+      if (best) receive(best);
+      if (!any && since === 'all' && state.seq > 0) send();
+      if (conn !== 'live') setConn('live');
+      return true;
+    } catch (e) {
+      setConn('down');
+      return false;
+    } finally {
+      if (!loaded) { loaded = true; render(); }
+    }
+  }
+
+  function connect() {
+    let es;
+    try { es = new EventSource(`${BASE}/${TOPIC}/sse`); } catch (e) { setConn('down'); return; }
+    es.onopen = () => { setConn('live'); poll(); };
+    es.onmessage = e => {
+      try {
+        const m = JSON.parse(e.data);
+        if (m.event !== 'message') return;
+        lastMsgId = m.id;
+        receive(JSON.parse(m.message));
+      } catch (err) {}
+    };
+    es.onerror = () => setConn(conn === 'live' ? 'connecting' : conn);
+  }
+
+  function setConn(c) {
+    conn = c;
+    const el = document.getElementById('conn');
+    el.className = c === 'live' ? 'live' : c === 'down' ? 'down' : '';
+    el.querySelector('span').textContent = c === 'live' ? 'Live' : c === 'down' ? 'Can’t reach server' : 'Connecting';
+    el.title = c === 'down' ? 'Can’t reach ntfy.sh. Your network may be blocking it.' : '';
+  }
+
+  // ---------- moves ----------
+  function canMoveNow() {
+    const me = myColor();
+    return loaded && me && !outcome(state, game).over && game.s.turn === me;
+  }
+
+  // moves that start with the squares picked so far
+  const candidates = () => game.L.filter(m => selPath.every((sq, i) => m.path[i] === sq));
+
+  const boardEl = document.getElementById('board');
+  boardEl.addEventListener('click', e => {
+    const r = boardEl.getBoundingClientRect();
+    const c = Math.floor((e.clientX - r.left) / (r.width / 8)), rr = Math.floor((e.clientY - r.top) / (r.height / 8));
+    if (c < 0 || c > 7 || rr < 0 || rr > 7) return;
+    const i = myColor() === 'b' ? (7 - rr) * 8 + (7 - c) : rr * 8 + c;
+    if (!canMoveNow()) { selPath = []; render(); return; }
+
+    if (selPath.length) {
+      const next = candidates().filter(m => m.path[selPath.length] === i);
+      if (next.length) {
+        selPath = selPath.concat(i);
+        const done = next.find(m => m.path.length === selPath.length);
+        if (done) return commit(done);
+        return render();
+      }
+    }
+    // pick (or re-pick) a piece that has a legal move
+    selPath = game.L.some(m => m.path[0] === i) && !(selPath.length === 1 && selPath[0] === i) ? [i] : [];
+    render();
+  });
+
+  function commit(m) {
+    selPath = [];
+    const ns = clone(state);
+    ns.moves.push(keyOf(m));
+    ns.seq++;
+    apply(ns, true);
+  }
+
+  // ---------- modals ----------
+  const modal = document.getElementById('modal'), card = document.getElementById('card');
+  function showModal(title, text, buttons, opts) {
+    opts = opts || {};
+    card.innerHTML = '';
+    const h = document.createElement('h2'); h.textContent = title; card.appendChild(h);
+    if (text) { const p = document.createElement('p'); p.textContent = text; card.appendChild(p); }
+    const row = document.createElement('div'); row.className = 'btns' + (opts.column ? ' col' : '');
+    for (const b of buttons) {
+      const el = document.createElement('button');
+      el.textContent = b.label;
+      if (b.primary) el.className = 'primary';
+      el.onclick = () => { closeModal(); if (b.onClick) b.onClick(); };
+      row.appendChild(el);
+    }
+    card.appendChild(row);
+    modal.hidden = false; modalOpen = true;
+  }
+  function closeModal() { modal.hidden = true; modalOpen = false; setTimeout(render, 0); }
+
+  function takeSeat(c) {
+    const ns = clone(state);
+    for (const k of ['b', 'r']) if (ns.seats[k] === CID) ns.seats[k] = null;
+    ns.seats[c] = CID;
+    ns.seq++;
+    watching = false; store.set(WATCH_KEY, '0');
+    apply(ns, true);
+  }
+
+  function seatPicker() {
+    const taken = c => state.seats[c] && state.seats[c] !== CID;
+    const pick = c => {
+      if (taken(c)) {
+        showModal(`${nm(c)} is taken`, 'Someone already sits there. Take over only if that was you on another computer.',
+          [{ label: 'Back', onClick: seatPicker }, { label: 'Take over', primary: true, onClick: () => takeSeat(c) }]);
+      } else takeSeat(c);
+    };
+    showModal('Pick your side', 'Black moves first. Your coworker opens this same tab and picks the other side.', [
+      { label: 'Play Black' + (taken('b') ? ' (taken)' : ''), primary: !taken('b'), onClick: () => pick('b') },
+      { label: 'Play Red' + (taken('r') ? ' (taken)' : ''), primary: taken('b') && !taken('r'), onClick: () => pick('r') },
+      { label: 'Just watch', onClick: () => { watching = true; store.set(WATCH_KEY, '1'); } }
+    ], { column: true });
+  }
+
+  document.getElementById('seatBtn').onclick = seatPicker;
+  document.getElementById('newBtn').onclick = () => {
+    showModal('Start a new game?', 'This clears the board for both of you.', [
+      { label: 'Cancel' },
+      { label: 'Same colors', onClick: () => newGame(false) },
+      { label: 'Swap colors', primary: true, onClick: () => newGame(true) }
+    ]);
+  };
+  function newGame(swap) {
+    const ns = clone(state);
+    ns.moves = []; ns.result = null; ns.seq++;
+    if (swap) ns.seats = { b: state.seats.r, r: state.seats.b };
+    apply(ns, true);
+  }
+  document.getElementById('resignBtn').onclick = () => {
+    showModal('Resign this game?', 'Your opponent wins.', [
+      { label: 'Cancel' },
+      { label: 'Resign', primary: true, onClick: () => {
+        const me = myColor(); if (!me) return;
+        const ns = clone(state); ns.result = { type: 'resign', by: me }; ns.seq++; apply(ns, true);
+      } }
+    ]);
+  };
+
+  // ---------- rendering ----------
+  const main = document.getElementById('main');
+  function layout() {
+    const headerH = document.querySelector('header').offsetHeight;
+    const wide = innerWidth >= 780;
+    main.classList.toggle('narrow', !wide);
+    const availW = innerWidth - 32 - (wide ? 230 + 24 : 0);
+    const availH = innerHeight - headerH - 32 - 68 - (wide ? 0 : 150);
+    const sq = Math.max(30, Math.min(100, Math.floor(Math.min(availW, availH) / 8)));
+    document.documentElement.style.setProperty('--sq', sq + 'px');
+  }
+  addEventListener('resize', () => { layout(); render(); });
+
+  function renderBar(el, c, out) {
+    const opp = c === 'b' ? 'r' : 'b', seat = state.seats[c];
+    const who = seat === CID ? ' <small>(you)</small>' : seat ? '' : ' <small>(open seat)</small>';
+    const mine = game.s.b.filter(p => sideOf(p) === c).length;
+    const theirsLost = 12 - game.s.b.filter(p => sideOf(p) === opp).length;
+    const caps = Array.from({ length: theirsLost }, () =>
+      `<i style="background:${opp === 'r' ? '#d84b3e' : '#2b2826'};border:1px solid ${opp === 'r' ? '#8e2a22' : '#000'}"></i>`).join('');
+    el.innerHTML = `<span class="turn ${!out.over && game.s.turn === c ? 'on' : ''}"></span>` +
+      `<span class="name">${nm(c)}${who}</span><span class="caps">${caps}</span>` +
+      `<span class="left">${mine} left</span>`;
+  }
+
+  function render() {
+    const s = game.s, me = myColor(), flip = me === 'b', out = outcome(state, game);
+    const myTurn = canMoveNow();
+    const cands = selPath.length ? candidates() : [];
+    const targets = new Set(cands.map(m => m.path[selPath.length]).filter(x => x !== undefined));
+    const mustJump = myTurn && game.L.length && game.L[0].caps.length;
+    const jumpers = new Set(mustJump ? game.L.map(m => m.path[0]) : []);
+    const last = game.hist[game.hist.length - 1];
+    const lastSet = new Set(last ? [last.path[0], last.path[last.path.length - 1]] : []);
+    const moving = selPath.length > 1 ? selPath[0] : -1;
+
+    boardEl.innerHTML = '';
+    for (let vr = 0; vr < 8; vr++) for (let vc = 0; vc < 8; vc++) {
+      const i = flip ? (7 - vr) * 8 + (7 - vc) : vr * 8 + vc, r = i >> 3, c = i & 7;
+      const d = document.createElement('div');
+      d.className = 'sq ' + ((r + c) % 2 ? 'dark' : 'light');
+      if (lastSet.has(i)) d.classList.add('last');
+      if (selPath.length && i === selPath[selPath.length - 1]) d.classList.add('sel');
+      else if (selPath.includes(i)) d.classList.add('path');
+      if (targets.has(i)) d.classList.add('dot');
+      if (!selPath.length && jumpers.has(i)) d.classList.add('must');
+      // while mid-jump, show the piece at its current spot in the path
+      let p = s.b[i];
+      if (moving >= 0) {
+        if (i === moving) p = null;
+        if (i === selPath[selPath.length - 1]) p = s.b[moving];
+      }
+      if (p) {
+        const disc = document.createElement('div');
+        disc.className = 'disc ' + sideOf(p);
+        if (isKing(p)) disc.innerHTML = '<span class="crown">♛︎</span>';
+        d.appendChild(disc);
+      }
+      boardEl.appendChild(d);
+    }
+
+    renderBar(document.getElementById('barTop'), flip ? 'r' : 'b', out);
+    renderBar(document.getElementById('barBot'), flip ? 'b' : 'r', out);
+
+    const st = document.getElementById('status');
+    let text, yours = false;
+    if (!loaded) text = 'Connecting…';
+    else if (out.over) text = out.text;
+    else if (!me) text = `${nm(s.turn)} to move` + (watching ? ' (watching)' : '');
+    else if (s.turn === me) {
+      yours = true;
+      text = selPath.length > 1 ? 'Keep jumping!' : mustJump ? 'Your move. You must jump!' : 'Your move';
+    } else {
+      const opp = me === 'b' ? 'r' : 'b';
+      text = state.seats[opp] ? `Waiting for ${nm(opp)}…` : `Waiting for someone to join as ${nm(opp)}…`;
+    }
+    if (sending) text += '  (sending…)';
+    st.textContent = text;
+    st.classList.toggle('yours', yours);
+
+    const mv = document.getElementById('moves');
+    if (!game.hist.length) mv.innerHTML = '<div class="empty">No moves yet</div>';
+    else {
+      let html = '';
+      const lastI = game.hist.length - 1;
+      for (let i = 0; i < game.hist.length; i += 2) {
+        const a = game.hist[i], b = game.hist[i + 1];
+        html += `<div class="row"><span class="n">${i / 2 + 1}.</span>` +
+          `<span class="${i === lastI ? 'cur' : ''}">${a.text}</span>` +
+          `<span class="${i + 1 === lastI ? 'cur' : ''}">${b ? b.text : ''}</span></div>`;
+      }
+      mv.innerHTML = html;
+      mv.scrollTop = mv.scrollHeight;
+    }
+
+    document.getElementById('resignBtn').disabled = !me || out.over || !loaded;
+    document.getElementById('newBtn').disabled = !loaded;
+
+    if (loaded && !me && !watching && !modalOpen) seatPicker();
+  }
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'Checkers'; });
+
+  layout();
+  render();
+  poll();
+  connect();
+  setInterval(() => { if (!document.hidden) poll(); }, 20000);
+})();
+</script>
+</body>
+</html>

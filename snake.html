@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snake</title>
+<style>
+  :root { --bg: #14161a; --text: #e6e6e6; --muted: #8b919a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  #wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px; }
+  #bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #score { font-size: 18px; font-weight: 700; }
+  #best { color: var(--muted); font-size: 14px; }
+  #back { color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; padding: 5px 11px;
+    border-radius: 6px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); }
+  #back:hover { background: rgba(255,255,255,.14); }
+  canvas { display: block; border-radius: 6px; touch-action: none; outline: none; }
+  #hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="bar">
+    <a id="back" href="./">&larr; Games</a>
+    <span id="score">Score 0</span>
+    <span id="best">Best 0</span>
+  </div>
+  <canvas id="c" tabindex="0"></canvas>
+  <div id="hint">Arrows / WASD &middot; Space pause &middot; R restart</div>
+</div>
+<script>
+(() => {
+  const COLS = 28, ROWS = 22;
+  const START_DELAY = 130, MIN_DELAY = 60, SPEEDUP_EVERY = 4, SPEEDUP_STEP = 6;
+  const BG = '#14161a', GRID = '#1b1e24', HEAD = '#7ee081', BODY = '#4aa458', FOOD = '#e05c5c',
+        FG = '#e6e6e6', MUTED = '#8b919a';
+  const UP = [0, -1], DOWN = [0, 1], LEFT = [-1, 0], RIGHT = [1, 0];
+
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best');
+
+  let best = 0;
+  try { best = +localStorage.getItem('snakeBest') || 0; } catch (e) {}
+
+  // ---------- rules (same as Snake.py) ----------
+  let snake, dir, pending, score, alive, won, food, paused, started, timer = null;
+
+  function reset() {
+    const midY = Math.floor(ROWS / 2);
+    snake = [[4, midY], [3, midY], [2, midY]];   // head first
+    dir = RIGHT; pending = []; score = 0;
+    alive = true; won = false; paused = false; started = false;
+    food = placeFood();
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  function placeFood() {
+    const free = [];
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
+      if (!snake.some(s => s[0] === x && s[1] === y)) free.push([x, y]);
+    return free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+
+  function turn(d) {
+    const last = pending.length ? pending[pending.length - 1] : dir;
+    if (d[0] === -last[0] && d[1] === -last[1]) return;   // no 180s
+    if (d[0] === last[0] && d[1] === last[1]) return;
+    if (pending.length < 2) pending.push(d);
+  }
+
+  function step() {
+    if (!alive) return;
+    if (pending.length) dir = pending.shift();
+    const nx = snake[0][0] + dir[0], ny = snake[0][1] + dir[1];
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) { alive = false; return; }
+    const eating = food && nx === food[0] && ny === food[1];
+    const body = eating ? snake : snake.slice(0, -1);
+    if (body.some(s => s[0] === nx && s[1] === ny)) { alive = false; return; }
+    snake.unshift([nx, ny]);
+    if (eating) {
+      score++;
+      food = placeFood();
+      if (!food) { won = true; alive = false; }
+    } else snake.pop();
+  }
+
+  const delay = () => Math.max(MIN_DELAY, START_DELAY - Math.floor(score / SPEEDUP_EVERY) * SPEEDUP_STEP);
+
+  // ---------- loop ----------
+  function schedule() { timer = setTimeout(tick, delay()); }
+  function tick() {
+    timer = null;
+    if (!paused && alive) {
+      step();
+      if (!alive && score > best) { best = score; try { localStorage.setItem('snakeBest', best); } catch (e) {} }
+      draw();
+    }
+    if (alive) schedule();
+  }
+
+  function start() {
+    if (started) return;
+    started = true;
+    schedule();
+    draw();
+  }
+
+  function restart() { reset(); draw(); }
+
+  function togglePause() {
+    if (!alive || !started) return;
+    paused = !paused;
+    draw();
+  }
+
+  function steer(d) {
+    if (!alive) return;
+    if (!started) { turn(d); start(); return; }
+    if (paused) return;
+    turn(d);
+  }
+
+  // ---------- input ----------
+  const KEYS = {
+    ArrowUp: UP, w: UP, W: UP, ArrowDown: DOWN, s: DOWN, S: DOWN,
+    ArrowLeft: LEFT, a: LEFT, A: LEFT, ArrowRight: RIGHT, d: RIGHT, D: RIGHT
+  };
+  addEventListener('keydown', e => {
+    if (KEYS[e.key]) { e.preventDefault(); steer(KEYS[e.key]); }
+    else if (e.key === ' ' || e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePause(); }
+    else if (e.key === 'r' || e.key === 'R' || e.key === 'Enter') { e.preventDefault(); restart(); }
+  });
+
+  // Click: start, unpause, or play again
+  cv.addEventListener('click', () => {
+    cv.focus();
+    if (!alive) restart();
+    else if (!started) start();
+    else if (paused) togglePause();
+  });
+
+  // Swipe on touch screens
+  let sx = null, sy = null;
+  cv.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
+  cv.addEventListener('pointerup', e => {
+    if (sx === null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    steer(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? RIGHT : LEFT) : (dy > 0 ? DOWN : UP));
+  });
+
+  // Auto-pause when you click away (e.g. back to Teams chat)
+  addEventListener('blur', () => { if (alive && started && !paused) { paused = true; draw(); } });
+
+  // ---------- drawing ----------
+  let cell = 22, dpr = 1;
+  function layout() {
+    dpr = window.devicePixelRatio || 1;
+    const availW = innerWidth - 24, availH = innerHeight - 110;
+    cell = Math.max(8, Math.floor(Math.min(availW / COLS, availH / ROWS)));
+    cv.style.width = COLS * cell + 'px';
+    cv.style.height = ROWS * cell + 'px';
+    cv.width = Math.round(COLS * cell * dpr);
+    cv.height = Math.round(ROWS * cell * dpr);
+    draw();
+  }
+  addEventListener('resize', layout);
+
+  function rrect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); ctx.fill();
+  }
+
+  function banner(title, sub) {
+    const w = COLS * cell, h = ROWS * cell;
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(0, h / 2 - 2.6 * cell, w, 5.2 * cell);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = FG;
+    ctx.font = `700 ${Math.round(cell * 1.1)}px "Segoe UI", system-ui, sans-serif`;
+    ctx.fillText(title, w / 2, h / 2 - 0.6 * cell);
+    ctx.fillStyle = MUTED;
+    ctx.font = `${Math.round(cell * 0.6)}px "Segoe UI", system-ui, sans-serif`;
+    ctx.fillText(sub, w / 2, h / 2 + 0.9 * cell);
+  }
+
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, COLS * cell, ROWS * cell);
+    ctx.fillStyle = GRID;
+    for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++)
+      if ((x + y) % 2 === 0) ctx.fillRect(x * cell, y * cell, cell, cell);
+
+    if (food) {
+      ctx.fillStyle = FOOD;
+      ctx.beginPath(); ctx.arc((food[0] + .5) * cell, (food[1] + .5) * cell, cell / 2 - 4 * cell / 22, 0, Math.PI * 2); ctx.fill();
+    }
+    snake.forEach((s, i) => {
+      ctx.fillStyle = i === 0 ? HEAD : BODY;
+      rrect(s[0] * cell + 1, s[1] * cell + 1, cell - 2, cell - 2, Math.max(2, cell * .18));
+    });
+
+    scoreEl.textContent = 'Score ' + score;
+    bestEl.textContent = 'Best ' + Math.max(best, score);
+
+    if (!started && alive) banner('Snake', 'Click here, then press an arrow key to start');
+    else if (paused) banner('Paused', 'Space or click to continue');
+    else if (!alive) banner(won ? 'You filled the board' : 'Game over — ' + score, 'R or click to play again');
+  }
+
+  reset();
+  layout();
+  cv.focus();
+})();
+</script>
+</body>
+</html>

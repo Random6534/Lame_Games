@@ -22,6 +22,9 @@
 
   header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel);
     border-bottom: 1px solid #333a45; flex-wrap: wrap; }
+  .back { color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 10px;
+    border-radius: 6px; background: var(--panel2); border: 1px solid #3c4452; }
+  .back:hover { background: #39414f; }
   #status { font-size: 18px; font-weight: 600; flex: 1; min-width: 180px; }
   #status.yours { color: var(--accent); }
   .hright { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -93,6 +96,7 @@
 </head>
 <body>
 <header>
+  <a class="back" href="./">&larr; Games</a>
   <div id="status">Connecting…</div>
   <div class="hright">
     <span id="conn"><i></i><span>Connecting</span></span>

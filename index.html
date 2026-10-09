@@ -3,358 +3,113 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hoops</title>
+<title>Game Center</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #161b27; overflow: hidden; }
-  canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
-  canvas.dragging { cursor: grabbing; }
+  :root { --bg: #1b1e24; --panel: #252a33; --edge: #353c48; --text: #ebe7df; --muted: #9aa1ad; --accent: #d9b26a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px; }
+  h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -.01em; }
+  .sub { margin: 0 0 28px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  a.game { display: flex; flex-direction: column; text-decoration: none; color: var(--text);
+    background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; overflow: hidden;
+    transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease; }
+  a.game:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 28px rgba(0,0,0,.35); }
+  .art { height: 130px; display: flex; align-items: center; justify-content: center; }
+  .art.hoops { background: linear-gradient(180deg, #232a3b 0%, #2b3348 72%, #b97c42 72%, #8a5427 100%); }
+  .art.chess { background: repeating-conic-gradient(#ecd8b6 0 25%, #ae8a68 0 50%) 0 0 / 52px 52px; }
+  .art.snake { background: #14161a; }
+  .art.peggle { background: radial-gradient(circle at 50% 0%, #3b2378 0%, #1a0a2e 75%); }
+  .art.checkers { background: repeating-conic-gradient(#ecd8b6 0 25%, #8a6446 0 50%) 0 0 / 52px 52px; }
+  .art .knight { font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif; font-size: 84px; line-height: 1;
+    color: #262321; text-shadow: 0 3px 6px rgba(0,0,0,.35); }
+  .info { padding: 14px 16px 16px; }
+  .info h2 { margin: 0 0 4px; font-size: 18px; }
+  .info p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
+  .tag { display: inline-block; margin-top: 10px; font-size: 12px; color: var(--accent);
+    border: 1px solid rgba(217,178,106,.4); border-radius: 999px; padding: 2px 9px; }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<script>
-(() => {
-  const cv = document.getElementById('c');
-  const ctx = cv.getContext('2d');
-
-  // World is a fixed 1000 x 600 box, scaled to fit the window
-  const W = 1000, H = 600;
-  const FLOOR = 560;
-  const G = 1900;            // gravity
-  const R = 22;              // ball radius
-  const STEP = 1 / 480;      // physics step
-  const DRAG_MAX_X = 620;    // can't carry the ball past this line
-
-  const RIM_Y = 262, RIM_F = 762, RIM_B = 846, RIM_R = 4;
-  const RIM_CX = (RIM_F + RIM_B) / 2, RIM_RX = (RIM_B - RIM_F) / 2, RIM_RY = 6;
-  const BOARD = { x: 852, y: 140, w: 12, h: 150 };
-  const ARM   = { x: 864, y: 246, w: 36, h: 8 };
-  const POLE  = { x: 900, y: 240, w: 16, h: FLOOR - 240 };
-
-  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-
-  const ball = { x: 180, y: FLOOR - R, vx: 0, vy: 0, a: 0, state: 'ready' };
-  let spawnX = 180;
-  let made = 0, shots = 0, streak = 0, best = 0;
-  let scored = false, touched = false, counted = false;
-  let flyTime = 0, restTime = 0;
-  let msg = 'Flick the ball at the hoop, or double-click it', msgT = 99, msgColor = '#ffffff';
-  let netSway = 0, time = 0;
-
-  try { best = +localStorage.getItem('hoopsBest') || 0; } catch (e) {}
-
-  // ---------- sizing ----------
-  let scale = 1, ox = 0, oy = 0, dpr = 1;
-  function resize() {
-    dpr = window.devicePixelRatio || 1;
-    const w = innerWidth, h = innerHeight;
-    cv.width = Math.round(w * dpr);
-    cv.height = Math.round(h * dpr);
-    scale = Math.min(w / W, h / H);
-    ox = (w - W * scale) / 2;
-    oy = (h - H * scale) / 2;
-  }
-  addEventListener('resize', resize);
-  resize();
-
-  // ---------- input ----------
-  let samples = [], grabOff = { x: 0, y: 0 };
-  function toWorld(e) {
-    const r = cv.getBoundingClientRect();
-    return { x: (e.clientX - r.left - ox) / scale, y: (e.clientY - r.top - oy) / scale };
-  }
-
-  cv.addEventListener('pointerdown', e => {
-    const p = toWorld(e);
-    if (Math.hypot(p.x - ball.x, p.y - ball.y) > R * 2.2) return;
-    if (ball.x > DRAG_MAX_X + R) return; // no grabbing it out of the hoop
-    ball.state = 'drag';
-    ball.vx = ball.vy = 0;
-    grabOff = { x: ball.x - p.x, y: ball.y - p.y };
-    samples = [{ x: ball.x, y: ball.y, t: performance.now() }];
-    cv.setPointerCapture(e.pointerId);
-    cv.classList.add('dragging');
-    if (msgT > 50) msgT = 0;
-  });
-
-  cv.addEventListener('pointermove', e => {
-    if (ball.state !== 'drag') return;
-    const p = toWorld(e);
-    ball.x = clamp(p.x + grabOff.x, R, DRAG_MAX_X);
-    ball.y = clamp(p.y + grabOff.y, R, FLOOR - R);
-    const now = performance.now();
-    samples.push({ x: ball.x, y: ball.y, t: now });
-    while (samples.length > 2 && now - samples[0].t > 90) samples.shift();
-  });
-
-  function release() {
-    if (ball.state !== 'drag') return;
-    cv.classList.remove('dragging');
-    const now = performance.now();
-    const first = samples[0], lastS = samples[samples.length - 1];
-    const dt = (now - first.t) / 1000;
-    let vx = 0, vy = 0;
-    if (dt > 0.008) { vx = (lastS.x - first.x) / dt; vy = (lastS.y - first.y) / dt; }
-    const sp = Math.hypot(vx, vy), MAX = 2600;
-    if (sp > MAX) { vx *= MAX / sp; vy *= MAX / sp; }
-    ball.vx = vx; ball.vy = vy;
-    ball.state = 'flying';
-    scored = false; touched = false; flyTime = 0; restTime = 0;
-    counted = Math.hypot(vx, vy) > 150;
-    if (counted) shots++;
-  }
-  cv.addEventListener('pointerup', release);
-  cv.addEventListener('pointercancel', release);
-
-  // Double-click the ball: auto-shoot it into the hoop
-  function autoShot() {
-    const dx = RIM_CX - ball.x, dy = RIM_Y - ball.y;
-    const T = 0.9 + Math.hypot(dx, dy) / 2000;   // flight time
-    ball.vx = dx / T;
-    ball.vy = (dy - 0.5 * G * T * T) / T;
-    ball.state = 'flying';
-    scored = false; touched = false; flyTime = 0; restTime = 0;
-    counted = true; shots++;
-    cv.classList.remove('dragging');
-  }
-  cv.addEventListener('dblclick', e => {
-    const p = toWorld(e);
-    if (Math.hypot(p.x - ball.x, p.y - ball.y) > R * 2.5) return;
-    if (ball.x > DRAG_MAX_X + R) return;
-    autoShot();
-  });
-
-  // ---------- physics ----------
-  function bounce(nx, ny, e) {
-    const vn = ball.vx * nx + ball.vy * ny;
-    if (vn < 0) {
-      ball.vx -= (1 + e) * vn * nx;
-      ball.vy -= (1 + e) * vn * ny;
-      const tx = -ny, ty = nx, vt = ball.vx * tx + ball.vy * ty;
-      ball.vx -= 0.1 * vt * tx;
-      ball.vy -= 0.1 * vt * ty;
-    }
-    touched = true;
-  }
-
-  function circleHit(cx, cy, cr, e) {
-    const dx = ball.x - cx, dy = ball.y - cy, d = Math.hypot(dx, dy), m = R + cr;
-    if (d < m && d > 0) {
-      const nx = dx / d, ny = dy / d;
-      ball.x = cx + nx * m; ball.y = cy + ny * m;
-      bounce(nx, ny, e);
-    }
-  }
-
-  function rectHit(r, e) {
-    const cx = clamp(ball.x, r.x, r.x + r.w), cy = clamp(ball.y, r.y, r.y + r.h);
-    const dx = ball.x - cx, dy = ball.y - cy, d = Math.hypot(dx, dy);
-    if (d < R) {
-      let nx = -1, ny = 0;
-      if (d > 0) { nx = dx / d; ny = dy / d; }
-      ball.x = cx + nx * R; ball.y = cy + ny * R;
-      bounce(nx, ny, e);
-    }
-  }
-
-  function step(dt) {
-    if (ball.state !== 'flying') return;
-    const py = ball.y;
-    ball.vy += G * dt;
-    ball.x += ball.vx * dt;
-    ball.y += ball.vy * dt;
-    ball.a += ball.vx * dt / R;
-
-    circleHit(RIM_F, RIM_Y, RIM_R, 0.55);
-    circleHit(RIM_B, RIM_Y, RIM_R, 0.55);
-    rectHit(BOARD, 0.7);
-    rectHit(ARM, 0.5);
-    rectHit(POLE, 0.5);
-
-    let onFloor = false;
-    if (ball.y > FLOOR - R) {
-      ball.y = FLOOR - R;
-      if (ball.vy > 80) { ball.vy = -ball.vy * 0.62; ball.vx *= 0.9; }
-      else ball.vy = 0;
-      onFloor = true;
-    }
-    if (onFloor) ball.vx *= Math.max(0, 1 - 1.2 * dt);
-    if (ball.x < R)     { ball.x = R;     ball.vx =  Math.abs(ball.vx) * 0.6; }
-    if (ball.x > W - R) { ball.x = W - R; ball.vx = -Math.abs(ball.vx) * 0.6; }
-
-    // Made basket: center drops through the rim opening
-    if (!scored && counted && py < RIM_Y && ball.y >= RIM_Y && ball.vy > 0 &&
-        ball.x > RIM_F && ball.x < RIM_B) {
-      scored = true;
-      made++; streak++;
-      if (streak > best) { best = streak; try { localStorage.setItem('hoopsBest', best); } catch (e) {} }
-      msg = (touched ? 'Bucket!' : 'Swish!') + (streak >= 3 ? `  ${streak} in a row` : '');
-      msgColor = touched ? '#ffffff' : '#ffd25a';
-      msgT = 1.6;
-      netSway = 1;
-    }
-
-    flyTime += dt;
-    restTime = (onFloor && Math.abs(ball.vx) < 25) ? restTime + dt : 0;
-    if (restTime > 0.4 || flyTime > 6) endThrow();
-  }
-
-  function endThrow() {
-    if (counted && !scored) streak = 0;
-    if (scored) spawnX = 110 + Math.random() * 380;
-    ball.x = spawnX; ball.y = FLOOR - R;
-    ball.vx = ball.vy = 0;
-    ball.state = 'ready';
-  }
-
-  // ---------- drawing ----------
-  function rect(r, fill) { ctx.fillStyle = fill; ctx.fillRect(r.x, r.y, r.w, r.h); }
-
-  function drawCourt() {
-    const w = innerWidth, h = innerHeight;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const fy = oy + FLOOR * scale;
-    let g = ctx.createLinearGradient(0, 0, 0, fy);
-    g.addColorStop(0, '#141925'); g.addColorStop(1, '#2b3348');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, fy);
-    g = ctx.createLinearGradient(0, fy, 0, h);
-    g.addColorStop(0, '#c98a4b'); g.addColorStop(1, '#8a5427');
-    ctx.fillStyle = g; ctx.fillRect(0, fy, w, h - fy);
-    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, fy, w, 3 * scale);
-    ctx.strokeStyle = 'rgba(80,40,10,.25)'; ctx.lineWidth = 1;
-    for (let y = fy + 14 * scale; y < h; y += 16 * scale) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-    }
-
-    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
-    // spotlight on the hoop
-    g = ctx.createRadialGradient(RIM_CX, 200, 10, RIM_CX, 200, 380);
-    g.addColorStop(0, 'rgba(255,255,255,.07)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g; ctx.fillRect(RIM_CX - 400, -200, 800, FLOOR + 200);
-  }
-
-  function drawHoopBack() {
-    // pole + base pad
-    let g = ctx.createLinearGradient(POLE.x, 0, POLE.x + POLE.w, 0);
-    g.addColorStop(0, '#59606e'); g.addColorStop(1, '#2f343e');
-    rect(POLE, g);
-    rect({ x: POLE.x - 10, y: FLOOR - 70, w: POLE.w + 20, h: 70 }, '#1f4fa8');
-    rect(ARM, '#4a505c');
-    // backboard
-    ctx.fillStyle = 'rgba(215,232,255,.9)';
-    ctx.fillRect(BOARD.x, BOARD.y, BOARD.w, BOARD.h);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
-    ctx.strokeRect(BOARD.x, BOARD.y, BOARD.w, BOARD.h);
-    // bracket
-    rect({ x: RIM_B, y: RIM_Y - 3, w: BOARD.x - RIM_B, h: 6 }, '#a0a6b0');
-    // back half of rim
-    ctx.strokeStyle = '#e2531f'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.ellipse(RIM_CX, RIM_Y, RIM_RX, RIM_RY, 0, Math.PI, Math.PI * 2); ctx.stroke();
-  }
-
-  function drawHoopFront() {
-    // net
-    const ROWS = 4, COLS = 7, pts = [];
-    for (let k = 0; k <= ROWS; k++) {
-      const f = k / ROWS, row = [];
-      const rx = RIM_RX * (1 - 0.45 * f);
-      const sway = Math.sin(time * 18 + k) * netSway * 6 * f;
-      const y = RIM_Y + RIM_RY * 0.6 + f * (62 + netSway * 12);
-      for (let i = 0; i <= COLS; i++) {
-        const th = Math.PI - (i / COLS) * Math.PI;
-        row.push({ x: RIM_CX + rx * Math.cos(th) + sway, y: y + (k === 0 ? RIM_RY * Math.sin(th) * 0.4 : 0) });
-      }
-      pts.push(row);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    for (let k = 0; k < ROWS; k++) {
-      for (let i = 0; i < COLS; i++) {
-        ctx.moveTo(pts[k][i].x, pts[k][i].y);     ctx.lineTo(pts[k + 1][i + 1].x, pts[k + 1][i + 1].y);
-        ctx.moveTo(pts[k][i + 1].x, pts[k][i + 1].y); ctx.lineTo(pts[k + 1][i].x, pts[k + 1][i].y);
-      }
-      ctx.moveTo(pts[k][0].x, pts[k][0].y);         ctx.lineTo(pts[k + 1][0].x, pts[k + 1][0].y);
-      ctx.moveTo(pts[k][COLS].x, pts[k][COLS].y);   ctx.lineTo(pts[k + 1][COLS].x, pts[k + 1][COLS].y);
-    }
-    ctx.stroke();
-    // front half of rim
-    ctx.strokeStyle = '#ff6a2b'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.ellipse(RIM_CX, RIM_Y, RIM_RX, RIM_RY, 0, 0, Math.PI); ctx.stroke();
-  }
-
-  function drawBall() {
-    const hgt = FLOOR - (ball.y + R), s = Math.max(0.3, 1 - hgt / 500);
-    ctx.fillStyle = `rgba(0,0,0,${0.35 * s})`;
-    ctx.beginPath(); ctx.ellipse(ball.x, FLOOR + 2, R * 1.1 * s, 5 * s, 0, 0, Math.PI * 2); ctx.fill();
-
-    ctx.save();
-    ctx.translate(ball.x, ball.y);
-    const g = ctx.createRadialGradient(-R * 0.35, -R * 0.35, R * 0.1, 0, 0, R);
-    g.addColorStop(0, '#ffa45c'); g.addColorStop(1, '#cf5418');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
-    ctx.clip();
-    ctx.rotate(ball.a);
-    ctx.strokeStyle = '#3b1c08'; ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.moveTo(-R, 0); ctx.lineTo(R, 0);
-    ctx.moveTo(0, -R); ctx.lineTo(0, R);
-    ctx.stroke();
-    ctx.beginPath(); ctx.arc(-R * 1.15, 0, R * 0.85, -1.3, 1.3); ctx.stroke();
-    ctx.beginPath(); ctx.arc(R * 1.15, 0, R * 0.85, Math.PI - 1.3, Math.PI + 1.3); ctx.stroke();
-    ctx.restore();
-    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(ball.x, ball.y, R, 0, Math.PI * 2); ctx.stroke();
-  }
-
-  function drawHud() {
-    ctx.textAlign = 'left';
-    ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,.88)';
-    ctx.fillText(`Made ${made} / ${shots}`, 24, 38);
-    ctx.fillText(`Streak ${streak}`, 24, 64);
-    ctx.fillStyle = 'rgba(255,210,90,.9)';
-    ctx.fillText(`Best ${best}`, 24, 90);
-
-    if (ball.state === 'drag') {
-      ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 2;
-      ctx.setLineDash([8, 10]);
-      ctx.beginPath(); ctx.moveTo(DRAG_MAX_X + R, 60); ctx.lineTo(DRAG_MAX_X + R, FLOOR); ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    if (msgT > 0) {
-      ctx.globalAlpha = clamp(msgT, 0, 1);
-      ctx.textAlign = 'center';
-      ctx.font = msgT > 50 ? '600 26px "Segoe UI", system-ui, sans-serif'
-                           : '800 44px "Segoe UI", system-ui, sans-serif';
-      ctx.fillStyle = msgColor;
-      ctx.fillText(msg, W / 2 - 60, 130);
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  function draw() {
-    drawCourt();
-    drawHoopBack();
-    drawBall();
-    drawHoopFront();
-    drawHud();
-  }
-
-  // ---------- loop ----------
-  let last = performance.now(), acc = 0;
-  function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now; acc += dt; time += dt;
-    while (acc >= STEP) { step(STEP); acc -= STEP; }
-    netSway *= Math.pow(0.04, dt);
-    if (msgT < 50) msgT -= dt;
-    draw();
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-})();
-</script>
+<div class="wrap">
+  <h1>Game Center</h1>
+  <p class="sub">Pick a game.</p>
+  <div class="grid">
+    <a class="game" href="hoops.html">
+      <div class="art hoops">
+        <svg width="74" height="74" viewBox="0 0 100 100" aria-hidden="true">
+          <defs><radialGradient id="bg" cx="35%" cy="35%" r="70%"><stop offset="0" stop-color="#ffa45c"/><stop offset="1" stop-color="#cf5418"/></radialGradient></defs>
+          <circle cx="50" cy="50" r="46" fill="url(#bg)" stroke="#3b1c08" stroke-width="2"/>
+          <g fill="none" stroke="#3b1c08" stroke-width="3">
+            <line x1="4" y1="50" x2="96" y2="50"/><line x1="50" y1="4" x2="50" y2="96"/>
+            <path d="M20 14 Q40 50 20 86"/><path d="M80 14 Q60 50 80 86"/>
+          </g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Hoops</h2>
+        <p>Grab the ball, flick it at the hoop. Double-click for an auto shot.</p>
+        <span class="tag">1 player</span>
+      </div>
+    </a>
+    <a class="game" href="snake.html">
+      <div class="art snake">
+        <svg width="180" height="90" viewBox="0 0 180 90" aria-hidden="true">
+          <g fill="#4aa458">
+            <rect x="21" y="51" width="16" height="16" rx="3"/><rect x="39" y="51" width="16" height="16" rx="3"/>
+            <rect x="57" y="51" width="16" height="16" rx="3"/><rect x="75" y="51" width="16" height="16" rx="3"/>
+            <rect x="75" y="33" width="16" height="16" rx="3"/><rect x="93" y="33" width="16" height="16" rx="3"/>
+          </g>
+          <rect x="111" y="33" width="16" height="16" rx="3" fill="#7ee081"/>
+          <circle cx="155" cy="41" r="6" fill="#e05c5c"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Snake</h2>
+        <p>Eat the apples, don't hit the walls or yourself. It speeds up as you grow.</p>
+        <span class="tag">1 player</span>
+      </div>
+    </a>
+    <a class="game" href="peggle.html">
+      <div class="art peggle">
+        <svg width="180" height="110" viewBox="0 0 180 110" aria-hidden="true">
+          <g fill="#4a8cff"><circle cx="30" cy="40" r="7"/><circle cx="58" cy="30" r="7"/><circle cx="122" cy="30" r="7"/>
+            <circle cx="150" cy="40" r="7"/><circle cx="44" cy="70" r="7"/><circle cx="136" cy="70" r="7"/><circle cx="90" cy="88" r="7"/></g>
+          <g fill="#ff8c44"><circle cx="90" cy="45" r="7"/><circle cx="72" cy="62" r="7"/><circle cx="108" cy="62" r="7"/></g>
+          <circle cx="160" cy="88" r="7" fill="#44ff88"/>
+          <circle cx="90" cy="12" r="6" fill="#eaeaea"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Peggle</h2>
+        <p>Aim, shoot, and clear all the orange pegs before you run out of balls.</p>
+        <span class="tag">1 player</span>
+      </div>
+    </a>
+    <a class="game" href="chess.html">
+      <div class="art chess"><span class="knight">&#9822;&#xFE0E;</span></div>
+      <div class="info">
+        <h2>Chess</h2>
+        <p>Play a coworker. Each of you sees the board from your own side.</p>
+        <span class="tag">2 players</span>
+      </div>
+    </a>
+    <a class="game" href="checkers.html">
+      <div class="art checkers">
+        <svg width="120" height="70" viewBox="0 0 120 70" aria-hidden="true">
+          <circle cx="38" cy="35" r="26" fill="#d84b3e" stroke="#8e2a22" stroke-width="3"/><circle cx="38" cy="35" r="17" fill="none" stroke="#b9372c" stroke-width="3"/>
+          <circle cx="82" cy="35" r="26" fill="#322e2b" stroke="#0d0c0b" stroke-width="3"/><circle cx="82" cy="35" r="17" fill="none" stroke="#1b1918" stroke-width="3"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Checkers</h2>
+        <p>Play a coworker. Jumps are mandatory, and you have to finish double jumps.</p>
+        <span class="tag">2 players</span>
+      </div>
+    </a>
+  </div>
+</div>
 </body>
 </html>
