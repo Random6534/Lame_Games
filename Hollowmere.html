@@ -17,11 +17,13 @@
   --display:'Jacquard 24','UnifrakturMaguntia',Georgia,serif; --sc:'Alegreya SC',Georgia,serif; --body:'Alegreya',Georgia,serif;
   color-scheme:dark;
 }
+[hidden]{display:none!important}
 html,body{background:var(--bg);color:var(--ink)}
+body{margin:0}
 body{font-family:var(--body);font-size:17px;line-height:1.4;padding-block:14px 24px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   background:radial-gradient(ellipse at top,#211710,var(--bg) 70%) var(--bg)}
-.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
 h1,h2,h3{margin:0;text-wrap:balance}
 .btn{font-family:var(--sc);font-weight:700;font-size:15px;letter-spacing:.03em;color:var(--ink);
   background:linear-gradient(#5d4027,#45301d);border:2px solid #1e140d;box-shadow:inset 0 1px 0 #7d5a36,0 2px 0 #1e140d;
@@ -137,7 +139,7 @@ canvas{width:100%;height:auto;display:block;image-rendering:pixelated;image-rend
   </header>
 
   <div class="stage">
-    <canvas id="cv" width="640" height="480" aria-label="Game world"></canvas>
+    <canvas id="cv" width="768" height="576" aria-label="Game world"></canvas>
     <div id="fade"></div>
   </div>
 
@@ -164,7 +166,7 @@ canvas{width:100%;height:auto;display:block;image-rendering:pixelated;image-rend
 <script>
 const $=s=>document.querySelector(s);
 const cv=$('#cv'), cx=cv.getContext('2d');
-const TS=32, W=640, H=480;
+const TS=32, W=768, H=576;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rnd=(a,b)=>a+Math.random()*(b-a), ri=(a,b)=>Math.floor(rnd(a,b+1)), clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function hash(x,y,k=0){let h=(x*374761393+y*668265263+k*982451653)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295;}
@@ -187,8 +189,8 @@ function makeTown(){
   R(G,'=',2,11,40,2);R(G,'=',2,27,40,2);
   R(G,'#',1,15,w-1,2);R(G,'#',21,1,2,h-2);R(G,'#',17,12,10,8);
   R(G,'W',0,0,w,1);R(G,'W',0,h-1,w,1);R(G,'W',0,0,1,h);R(G,'W',w-1,0,1,h);
-  R(G,'E',w-1,15,1,2);
-  [[0,0],[w-1,0],[0,h-1],[w-1,h-1],[w-1,14],[w-1,17],[0,15],[11,0],[32,0],[11,h-1],[32,h-1]].forEach(([x,y])=>O[y][x]='Z');
+  G[15][0]=G[16][0]=G[15][w-1]=G[16][w-1]=G[0][21]=G[0][22]=G[h-1][21]=G[h-1][22]='#';
+  [[0,0],[w-1,0],[0,h-1],[w-1,h-1],[w-1,14],[w-1,17],[0,14],[0,17],[20,0],[23,0],[20,h-1],[23,h-1],[11,0],[32,0],[11,h-1],[32,h-1]].forEach(([x,y])=>O[y][x]='Z');
   R(G,'w',30,18,4,2);
   R(O,'q',10,18,5,2);R(O,'F',9,17,7,1);
   for(const b of BUILDINGS){R(O,'H',b.x,b.y,b.w,b.h);O[b.y+b.h-1][b.door]='U'}
@@ -203,25 +205,60 @@ function makeTown(){
   }
   return {ground:G.map(r=>r.join('')),obj:O.map(r=>r.join(''))};
 }
-function makeField(){
-  const w=30,h=20,G=[],O=[];
-  for(let y=0;y<h;y++){let g='',o='';for(let x=0;x<w;x++){let c='v',ob=' ';
-    if(x===0||y===0||x===w-1||y===h-1)ob='T';
-    else{const n=Math.sin(x*.42+1.3)+Math.sin(y*.55+.4)+Math.sin((x+y)*.27+2.1)+Math.sin((x-y)*.31);
-      if(n>1.5)c='.'; if(hash(x,y,77)<.04)ob='T'; else if(hash(x,y,78)<.025)ob='R';
-      if(((x-21)**2)/10+((y-6)**2)/4<1){c='w';ob=' '}}
-    if(y===10&&x<=6){c='=';ob=' '} if(x===0&&y===10){c='X';ob=' '}
-    if(x<=3&&Math.abs(y-10)<=1&&c!=='X'&&c!=='='){c='.';if(x>0)ob=' '}
-    g+=c;o+=ob}G.push(g);O.push(o)}
-  return {ground:G,obj:O};
+const WW=120,WH=96,OX=38,OY=32,TW=44,TH=32;
+function vnoise(x,y,sc,k=99){const gx=x/sc,gy=y/sc,ix=Math.floor(gx),iy=Math.floor(gy),fx=gx-ix,fy=gy-iy,sm=t=>t*t*(3-2*t);
+  const a=hash(ix,iy,k),b=hash(ix+1,iy,k),c=hash(ix,iy+1,k),d=hash(ix+1,iy+1,k),u=sm(fx),v=sm(fy);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
+const ZONE=[];
+const SIGNS={};
+function makeWorld(){
+  const town=makeTown(),G=[],O=[];
+  for(let y=0;y<WH;y++){G.push(Array(WW).fill('.'));O.push(Array(WW).fill(' '));ZONE.push(new Uint8Array(WW))}
+  const nearTown=(x,y)=>x>=OX-3&&x<OX+TW+3&&y>=OY-3&&y<OY+TH+3;
+  for(let y=0;y<WH;y++)for(let x=0;x<WW;x++){
+    const ff=(50-x)/50*.62+(42-y)/42*.62+(vnoise(x,y,6)-.5)*.4,forest=ff>.6&&!nearTown(x,y);
+    if(forest){ZONE[y][x]=2;G[y][x]=vnoise(x,y,3,7)>.6?'y':'d';const h=hash(x,y,21);if(h<.26)O[y][x]='K';else if(h<.29)O[y][x]='m'}
+    else{if(vnoise(x,y,5,3)>.58)G[y][x]='v';else if(hash(x,y,12)<.05)G[y][x]='f';
+      const h=hash(x,y,11);if(h<(vnoise(x,y,8,5)>.62?.14:.02))O[y][x]='T';else if(hash(x,y,13)<.01)O[y][x]='R'}
+    if(x<2||y<2||x>=WW-2||y>=WH-2)O[y][x]=forest?'K':'T';
+  }
+  const lake=(cx0,cy0,rx,ry)=>{for(let y=0;y<WH;y++)for(let x=0;x<WW;x++){const d=((x-cx0)/rx)**2+((y-cy0)/ry)**2+(vnoise(x,y,4,8)-.5)*.5;
+    if(d<1){G[y][x]='w';O[y][x]=' '}else if(d<1.3&&G[y][x]!=='w'){G[y][x]='s';O[y][x]=' '}}};
+  lake(100,22,11,7);lake(84,80,6,4);
+  for(let y=27;y<WH;y++){const rx=Math.round(100+Math.sin(y/7)*3);
+    for(const x of [rx-1,rx+2])if(G[y][x]!=='w'){G[y][x]='s';O[y][x]=' '}
+    for(const x of [rx,rx+1]){G[y][x]='w';O[y][x]=' '}}
+  const road=(x,y)=>{if(G[y][x]==='w')G[y][x]='B';else G[y][x]=ZONE[y][x]===2?'~':'=';O[y][x]=' '};
+  for(let x=OX+TW;x<WW-2;x++){road(x,OY+15);road(x,OY+16)}
+  for(let x=2;x<OX;x++){road(x,OY+15);road(x,OY+16)}
+  for(let y=2;y<OY;y++){road(OX+21,y);road(OX+22,y)}
+  for(let y=OY+TH;y<WH-2;y++){road(OX+21,y);road(OX+22,y)}
+  for(let y=6;y<=OY+15;y++){const tx=20+Math.round(Math.sin(y/5)*3);road(tx,y);road(tx+1,y)}
+  for(let x=8;x<=OX+21;x++){const ty=14+Math.round(Math.sin(x/6)*2);road(x,ty);road(x,ty+1)}
+  // standing-stone clearing deep in the Darkwood
+  const sx=11,sy=27;for(let y=sy-4;y<=sy+4;y++)for(let x=sx-4;x<=sx+4;x++){if((x-sx)**2+(y-sy)**2<=17){O[y][x]=' ';G[y][x]='d'}}
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2;O[sy+Math.round(Math.sin(a)*3)][sx+Math.round(Math.cos(a)*3)]='R'}
+  O[sy][sx]='m';for(let x=sx+4;x<=22;x++){road(x,sy)}
+  // farmland
+  for(let y=OY+TH+3;y<OY+TH+7;y++)for(let x=OX+26;x<OX+38;x++){O[y][x]='q';G[y][x]='.'}
+  for(let x=OX+25;x<OX+39;x++){O[OY+TH+2][x]='F';G[OY+TH+2][x]='.'}
+  for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){G[OY+y][OX+x]=town.ground[y][x];O[OY+y][OX+x]=town.obj[y][x];ZONE[OY+y][OX+x]=1}
+  const sign=(x,y,title,text)=>{O[y][x]='P';if(G[y][x]==='v')G[y][x]='.';SIGNS[x+','+y]=[title,text]};
+  sign(OX+39,OY+14,'Notice Board','Four roads leave Hollowmere. East to Mirror Lake, north and south through the meadows, and west toward the Darkwood. By order of the Reeve: carry a blade, a tonic, and a friend.');
+  sign(OX+46,OY+14,'Signpost','East Road: Mirror Lake and the river bridge.');
+  sign(OX-3,OY+14,'Signpost','West Road. A trail to the north leads into the Darkwood. Turn back unless you can face the dead.');
+  sign(OX+19,OY-3,'Signpost','North Road. A trail branches west into the Darkwood.');
+  sign(18,44,'Weathered Sign','THE DARKWOOD. Here it is always night. Spiders nest in the deep trees.');
+  sign(17,24,'Mossy Stone','The standing stones hum faintly. Something old sleeps beneath them.');
+  return {ground:G.map(r=>r.join('')),obj:O.map(r=>r.join(''))};
 }
-const TOWN=makeTown(), FIELD=makeField();
+const WORLD=makeWorld();
+for(const b of BUILDINGS){b.x+=OX;b.y+=OY;b.door+=OX}
 const MAPS={
-  town:{name:'Hollowmere',outdoor:true,tiles:TOWN.ground,obj:TOWN.obj,npcs:[
-    {x:42,y:14,kind:'guard',name:'Gate Guard',lines:['"The fields are tame by day. Slimes, bees, the odd boar."','"After dark the dead walk out there. Fire works best on them, so carry Mana Tonics."','"I saw something big and grey at the treeline. Stay away until you\'re stronger."']},
-    {x:19,y:13,kind:'maud',name:'Old Maud',lines:['"Rest at the Sleeping Stag, dearie. Bram keeps the beds warm."','"Marrow\'s shop sells blades, but his storerooms hold more than he lets on. Go and have a look."','"Pray at the chapel if you\'re hurt. Sister Elin never turns anyone away."']}]},
-  field:{name:'Open Fields',outdoor:true,tiles:FIELD.ground,obj:FIELD.obj,npcs:[]},
-  inn:{name:'The Sleeping Stag',outdoor:false,floor:'wood',stone:'#6d655a',mortar:'#4f493f',keeper:'innkeeper',exit:{x:7,y:11},tiles:[
+  world:{name:'Hollowmere',outdoor:true,tiles:WORLD.ground,obj:WORLD.obj,npcs:[
+    {x:OX+42,y:OY+14,kind:'guard',name:'Gate Guard',lines:['"The meadows are tame by day. Slimes, bees, the odd boar."','"After dark the dead walk out there. Fire works best on them, so carry Mana Tonics."','"Follow the east road to Mirror Lake. Prettiest view in the realm."']},
+    {x:OX+1,y:OY+17,kind:'guard',name:'West Gate Guard',lines:['"The Darkwood is just north-west of here. The sun never reaches the floor in there."','"Whatever hunts at night in the fields lives in the Darkwood all day long. And spiders, big ones."','"Bring Smoke Pouches. Running is no shame in that forest."']},
+    {x:OX+19,y:OY+13,kind:'maud',name:'Old Maud',lines:['"Rest at the Sleeping Stag, dearie. Bram keeps the beds warm."','"Marrow\'s shop sells blades, but his storerooms hold more than he lets on. Go and have a look."','"Pray at the chapel if you\'re hurt. Sister Elin never turns anyone away."','"There\'s a ring of standing stones deep in the Darkwood. My granny swore they glow."']}]},
+  inn:{name:'The Sleeping Stag',outdoor:false,floor:'wood',stone:'#6d655a',mortar:'#4f493f',keeper:'innkeeper',exit:{x:OX+7,y:OY+11},tiles:[
 "#353#4#77#5#4##45454##",
 "#b.K.b.rr....#.BnBnB.#",
 "#CCCCC.rr....#.Q.Q.Q.#",
@@ -236,7 +273,7 @@ const MAPS={
 "#....rrr.....#b.....b#",
 "#....rrr.....#.......#",
 "######D###############"]},
-  shop:{name:"Marrow's Outfitters",outdoor:false,floor:'wood',stone:'#645c52',mortar:'#48423a',keeper:'merchant',exit:{x:29,y:11},tiles:[
+  shop:{name:"Marrow's Outfitters",outdoor:false,floor:'wood',stone:'#645c52',mortar:'#48423a',keeper:'merchant',exit:{x:OX+29,y:OY+11},tiles:[
 "#12133151332124##4#5#4##",
 "#W.Cb..K..xC..M#bb,bb,b#",
 "#..C.......C...#,,,,,,x#",
@@ -251,7 +288,7 @@ const MAPS={
 "#.....rrr......#bb,,,bb#",
 "#.....rrr......#bsx,xbb#",
 "#######D################"]},
-  chapel:{name:'Chapel of the Dawn',outdoor:false,floor:'stone',stone:'#958e83',mortar:'#746e64',keeper:'priest',exit:{x:8,y:27},tiles:[
+  chapel:{name:'Chapel of the Dawn',outdoor:false,floor:'stone',stone:'#958e83',mortar:'#746e64',keeper:'priest',exit:{x:OX+8,y:OY+27},tiles:[
 "#8#8##686##8#8#",
 "#n....AAA....n#",
 "#......K......#",
@@ -268,7 +305,7 @@ const MAPS={
 "#######D#######"]}};
 for(const k in MAPS){const M=MAPS[k];M.h=M.tiles.length;M.w=M.tiles[0].length;M.npcs=M.npcs||[];
   if(!M.outdoor)M.tiles.forEach((r,y)=>{for(let x=0;x<r.length;x++)if(r[x]==='K')M.npcs.push({x,y,kind:M.keeper})})}
-const OUT_SOLID=new Set('TZOPLkbxFhHUqR');
+const OUT_SOLID=new Set('TKZOPLkbxFhHUqR');
 const IN_SOLID=new Set('#12345678 CKBQnbxsTcMWSPA');
 const tileAt=(m,x,y)=>{const M=MAPS[m],r=M.tiles[y];return r&&x>=0&&x<r.length?r[x]:(M.outdoor?'W':' ')};
 const objAt=(m,x,y)=>{const M=MAPS[m];if(!M.obj)return ' ';const r=M.obj[y];return r&&x>=0&&x<r.length?r[x]:' '};
@@ -290,7 +327,8 @@ const MON=[
  {id:'bat',n:'Night Bat',time:'night',hp:16,atk:8,def:1,agi:10,xp:12,g:6,w:3,fly:1},
  {id:'skeleton',n:'Skeleton',time:'night',hp:30,atk:11,def:6,agi:4,xp:22,g:16,w:2,undead:1},
  {id:'wraith',n:'Wraith',time:'night',hp:26,atk:12,def:2,agi:7,xp:26,g:18,w:2,undead:1,fly:1},
- {id:'werewolf',n:'Werewolf',time:'night',hp:48,atk:15,def:5,agi:9,xp:55,g:35,w:1,min:3}];
+ {id:'werewolf',n:'Werewolf',time:'night',hp:48,atk:15,def:5,agi:9,xp:55,g:35,w:1,min:3},
+ {id:'spider',n:'Dire Spider',time:'forest',hp:34,atk:13,def:4,agi:9,xp:32,g:22,w:3}];
 const PEOPLE={
   player:{skin:'#f1c9a0',hair:'#5b3a20',top:'#2f5f8a',legs:'#3a2e2a',cloak:'#7a2e24',sword:1},
   innkeeper:{skin:'#e6b98f',hair:'#8a8a8a',bald:1,beard:'#9a9a9a',top:'#7a4b2a',apron:'#e8e0cc',legs:'#3a2e2a'},
@@ -300,36 +338,41 @@ const PEOPLE={
   maud:{skin:'#e8c4a0',hair:'#d8d4cc',top:'#6b4f7a',robe:1,shawl:'#8a6a4a'}};
 
 /* =================== STATE =================== */
-const KEY='hollowmere-save-v2', OLD='hollowmere-save-v1';
-const NEW=()=>({lv:1,xp:0,gold:30,hp:0,mp:0,st:{str:3,def:2,vit:3,agi:2,int:2},pts:0,bag:{potion:2,ether:0,smoke:0},wpn:0,arm:0,time:'day',map:'town',x:7,y:11,dir:'down',kills:0,checkedIn:false,searched:[]});
+const KEY='hollowmere-save-v3', V2='hollowmere-save-v2', OLD='hollowmere-save-v1';
+const NEW=()=>({lv:1,xp:0,gold:30,hp:0,mp:0,st:{str:3,def:2,vit:3,agi:2,int:2},pts:0,bag:{potion:2,ether:0,smoke:0},wpn:0,arm:0,time:'day',map:'world',x:OX+7,y:OY+11,dir:'down',kills:0,checkedIn:false,searched:[]});
 const maxHP=()=>20+S.st.vit*6+S.lv*4, maxMP=()=>8+S.st.int*4;
 const atk=()=>3+S.st.str*2+WEAPONS[S.wpn].a, defn=()=>Math.round(1+S.st.def*1.5+ARMORS[S.arm].d);
 const crit=()=>Math.min(.4,.04+S.st.agi*.015), dodge=()=>Math.min(.3,.02+S.st.agi*.012);
 const spell=()=>6+S.st.int*3, xpNext=l=>Math.round(18*Math.pow(l,1.6));
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.st&&MAPS[s.map])return Object.assign(NEW(),s)}catch(e){}
+  try{const s=JSON.parse(localStorage.getItem(V2));if(s&&s.st){const n=Object.assign(NEW(),s);
+    if(s.map==='town'){n.map='world';n.x=s.x+OX;n.y=s.y+OY}else if(s.map==='field'||!MAPS[s.map]){n.map='world';n.x=OX+46;n.y=OY+15}return n}}catch(e){}
   try{const o=JSON.parse(localStorage.getItem(OLD));if(o&&o.st){const s=NEW();['lv','xp','gold','hp','mp','st','pts','bag','wpn','arm','time','kills'].forEach(k=>{if(o[k]!==undefined)s[k]=o[k]});return s}}catch(e){}
   return null}
 let fresh=false, S=load(); if(!S){S=NEW();fresh=true}
 if(!S.hp){S.hp=maxHP();S.mp=maxMP()}
 const P={x:S.x,y:S.y,fx:S.x,fy:S.y,t:1,moving:false,dir:S.dir,step:0,enc:0};
-if(isSolid(P.x,P.y)){S.map='town';P.x=P.fx=7;P.y=P.fy=11}
+if(isSolid(P.x,P.y)){S.map='world';P.x=P.fx=OX+7;P.y=P.fy=OY+11}
 function save(){try{S.x=P.x;S.y=P.y;S.dir=P.dir;localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function placePlayer(x,y,d){P.x=P.fx=x;P.y=P.fy=y;P.dir=d;P.moving=false;P.t=1;P.enc=0}
-let scene='explore', B=null, T=0, fading=false;
+let scene='explore', B=null, T=0, fading=false, DARK=0, DARKC=[9,13,42], lastArea='', AREA=null;
 const held=[];
 
 /* =================== HUD / UI =================== */
+function areaName(){if(S.map!=='world')return MAPS[S.map].name;const z=ZONE[P.y]?ZONE[P.y][P.x]:0;
+  if(z===1)return 'Hollowmere';if(z===2)return 'The Darkwood';if(P.x>84&&P.y<38)return 'Mirror Lake';return 'Open Fields'}
+function checkArea(){const n=areaName();if(n!==lastArea){const first=!lastArea;lastArea=n;hud();if(!first&&S.map==='world')AREA={name:n,t:2.6}}}
 function setBar(k,v,m){$('#h'+k+'b').style.width=(100*clamp(v/m,0,1))+'%';$('#h'+k).textContent=`${Math.max(0,v)}/${m}`}
 function hud(){
-  $('#hLv').textContent=S.lv;$('#hPlace').textContent=MAPS[S.map].name;
+  $('#hLv').textContent=S.lv;$('#hPlace').textContent=areaName();
   const t=$('#hTime');t.textContent=S.time==='day'?'Day':'Night';t.className='time '+S.time;
   setBar('HP',S.hp,maxHP());setBar('MP',S.mp,maxMP());setBar('XP',S.xp,xpNext(S.lv));
   $('#hGold').textContent=S.gold;const pb=$('#ptsBadge');pb.hidden=!S.pts;pb.textContent=S.pts;
 }
 let toastT;
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3000)}
-function fade(fn,after){fading=true;held.length=0;$('#fade').style.opacity=1;setTimeout(()=>{fn();$('#fade').style.opacity=0;setTimeout(()=>{fading=false;after&&after()},300)},reduce?60:420)}
+function fade(fn,after,quick){const f=$('#fade');fading=true;held.length=0;f.style.transitionDuration=quick?'.14s':'.4s';f.style.opacity=1;setTimeout(()=>{fn();f.style.opacity=0;setTimeout(()=>{fading=false;after&&after()},quick?120:300)},reduce?40:quick?150:420)}
 const modalOpen=()=>!$('#modal').hidden;
 function modal(render,handle){const box=$('#mbox');held.length=0;const draw=()=>{box.innerHTML=render()};draw();$('#modal').hidden=false;
   box.onclick=e=>{const b=e.target.closest('[data-a]');if(!b||b.disabled)return;const a=b.dataset.a;if(a==='close'){closeModal();return}if(handle&&handle(a)!==false)draw()};
@@ -376,7 +419,6 @@ function openPriest(){
     <div class="mfoot"><button class="btn" data-a="close">Bless you</button><button class="btn seal" data-a="heal" ${S.gold<5||S.hp>=maxHP()?'disabled':''}>Donate 5 g · Restore HP</button></div>`,
   a=>{if(a==='heal'){S.gold-=5;S.hp=maxHP();save();hud();toast('Warm light fills you. HP restored.')}});
 }
-function openSign(){say('Notice Board','East Gate: the Open Fields. Monsters hide in the tall grass.','By order of the Reeve: do not wander the fields after dark without a blade, a tonic, and a friend.')}
 function talk(n){
   if(n.kind==='innkeeper')return openInnkeeper(); if(n.kind==='merchant')return openShop(); if(n.kind==='priest')return openPriest();
   n.i=((n.i??-1)+1)%n.lines.length; say(n.name,n.lines[n.i]);
@@ -409,7 +451,7 @@ function openStats(){
   },a=>{
     if(a.startsWith('add:')&&S.pts>0){const k=a.slice(4);S.st[k]++;S.pts--;if(k==='vit')S.hp+=6;if(k==='int')S.mp+=4;save();hud()}
     if(a==='reset')confirmReset=true;if(a==='noreset')confirmReset=false;
-    if(a==='doreset'){S=NEW();S.hp=maxHP();S.mp=maxMP();placePlayer(7,11,'down');save();hud();closeModal();openIntro();return false}
+    if(a==='doreset'){S=NEW();S.hp=maxHP();S.mp=maxMP();placePlayer(OX+7,OY+11,'down');save();hud();closeModal();openIntro();return false}
   });
 }
 const useRow=(n,d,q,a,dis)=>`<div class="item"><div><b>${n}</b><small>${d}</small></div><span class="price">×${q}</span><button class="btn sm" data-a="${a}" ${dis?'disabled':''}>Use</button></div>`;
@@ -423,8 +465,8 @@ function openBag(){
     <div class="mfoot"><button class="btn" data-a="close">Close</button></div>`,
   a=>{if(a==='use:potion'){S.bag.potion--;S.hp=Math.min(maxHP(),S.hp+40)}if(a==='use:ether'){S.bag.ether--;S.mp=Math.min(maxMP(),S.mp+20)}save();hud()});
 }
-function openIntro(){modal(()=>`<h2>Hollowmere</h2><p>A walled market town at the edge of the Open Fields. Leave through the east gate to hunt monsters in the tall grass.</p>
-  <p class="sub">Walk into a door to go inside. At the Sleeping Stag Inn (with the INN sign), check in with Bram, then sleep in a bed to switch between day and night. Marrow's shop sells gear, and its storerooms are worth a search. Each level gives you 3 talent points.</p>
+function openIntro(){modal(()=>`<h2>Hollowmere</h2><p>A walled market town in the middle of open country. Walk out any of its four gates and keep going. Meadows and tall grass surround it, Mirror Lake lies to the east, and the Darkwood lies to the north-west.</p>
+  <p class="sub">Walk into a door to go inside. At the Sleeping Stag Inn, check in with Bram, then sleep in a bed to switch between day and night. Different monsters hunt the meadows at night. The Darkwood is always dark and always dangerous. Each level gives you 3 talent points.</p>
   <div class="mfoot"><button class="btn seal" data-a="close">Begin</button></div>`)}
 
 /* =================== EXPLORE LOGIC =================== */
@@ -438,18 +480,20 @@ function tryMove(d){
 function enterDoor(x,y){
   const b=BUILDINGS.find(b=>b.door===x&&b.y+b.h-1===y);if(!b)return;
   if(!b.to){say('Locked Door',b.msg);return}
-  fade(()=>{S.map=b.to.map;placePlayer(b.to.x,b.to.y,'up');save();hud()});
+  fade(()=>{S.map=b.to.map;placePlayer(b.to.x,b.to.y,'up');save();checkArea();hud()},null,true);
 }
 function interactAt(x,y,bump){
   const M=MAPS[S.map],n=npcAt(x,y);if(n){talk(n);return}
   if(M.outdoor){const o=objAt(S.map,x,y);
-    if(o==='U'){enterDoor(x,y);return} if(o==='P'){openSign();return}
+    if(o==='U'){enterDoor(x,y);return} if(o==='P'){const sg=SIGNS[x+','+y]||['Signpost','The words have worn away.'];say(sg[0],sg[1]);return}
     if(bump)return;
     if(o==='O'){const h=Math.min(maxHP()-S.hp,8);S.hp+=h;hud();save();say('Town Well',h?`You draw a bucket of cold water and drink. +${h} HP.`:'You drink cold, clear water. Refreshing.')}
     else if(o==='k')say('Market Stall',hash(x,y,3)<.5?'Red apples, rye loaves and a wheel of cheese. The stallkeeper is off at lunch.':'Bolts of dyed wool and a basket of eggs. A sign says "Back soon."');
     else if('bxh'.includes(o)&&o!==' ')search(x,y,o);
     else if(o==='q')say('Turnip Patch','Neat rows of turnips. Best leave them be.');
     else if(o==='L')say('Lamp Post','An iron lantern. The lamplighter fills it with oil at dusk.');
+    else if(o==='K')say('Gnarled Tree','The bark is black and cold. You hear skittering in the branches above.');
+    else if(o==='R'&&ZONE[y][x]===2)say('Standing Stone','Old carvings of a lantern and a sleeping wolf. The stone is warm to the touch.');
     return}
   const t=tileAt(S.map,x,y);
   if(t==='C'){M.keeper==='innkeeper'?openInnkeeper():openShop();return}
@@ -468,11 +512,11 @@ function interactAt(x,y,bump){
 function interact(){if(!canMove())return;const [dx,dy]=DIRS[P.dir];interactAt(P.x+dx,P.y+dy,false)}
 function arrive(){
   const M=MAPS[S.map],g=tileAt(S.map,P.x,P.y);
-  if(S.map==='town'&&g==='E'){fade(()=>{S.map='field';placePlayer(1,10,'right');save();hud()});return}
-  if(S.map==='field'&&g==='X'){fade(()=>{S.map='town';placePlayer(42,15,'left');save();hud()});return}
-  if(!M.outdoor&&g==='D'){fade(()=>{const e=M.exit;S.map='town';placePlayer(e.x,e.y,'down');save();hud()});return}
-  save();
-  if(S.map==='field'&&g==='v'){P.enc++;if(P.enc>=3&&Math.random()<.14){P.enc=0;startBattle()}}
+  if(!M.outdoor&&g==='D'){fade(()=>{const e=M.exit;S.map='world';placePlayer(e.x,e.y,'down');save();checkArea();hud()},null,true);return}
+  save();checkArea();
+  if(S.map==='world'){const z=ZONE[P.y][P.x];
+    if(z===2&&'dy~'.includes(g)){P.enc++;if(P.enc>=3&&Math.random()<(g==='~'?.05:.12)){P.enc=0;startBattle('forest')}}
+    else if(z===0&&g==='v'){P.enc++;if(P.enc>=3&&Math.random()<.14){P.enc=0;startBattle('wilds')}}}
 }
 
 /* =================== DRAW HELPERS =================== */
@@ -501,7 +545,15 @@ function townWall(X,Y){cx.fillStyle='#7a736a';cx.fillRect(X,Y,TS,TS);cx.fillStyl
   cx.fillStyle='#958d81';cx.fillRect(X,Y,TS,3);cx.fillStyle='#3e3a34';cx.fillRect(X+10,Y,6,5);cx.fillRect(X+26,Y,6,5)}
 function arrow(X,Y,dir){cx.fillStyle='rgba(255,240,200,.75)';const o=Math.sin(T*4)*2;cx.beginPath();
   if(dir>0){cx.moveTo(X+10+o,Y+10);cx.lineTo(X+20+o,Y+16);cx.lineTo(X+10+o,Y+22)}else{cx.moveTo(X+22-o,Y+10);cx.lineTo(X+12-o,Y+16);cx.lineTo(X+22-o,Y+22)}cx.fill()}
+function forestFloor(X,Y,x,y,fern){cx.fillStyle='#25321e';cx.fillRect(X,Y,TS,TS);
+  for(let i=0;i<4;i++){cx.fillStyle=['#3a3322','#1b2516','#4a3a26','#2e3d24'][i];cx.fillRect(X+hash(x,y,i+40)*28,Y+hash(x,y,i+50)*28,3,2)}
+  if(fern){cx.strokeStyle='#355a2c';cx.lineWidth=2;for(let i=0;i<3;i++){const bx=X+6+i*10,sw=Math.sin(T*1.5+x+i)*1.5;cx.beginPath();cx.moveTo(bx,Y+28);cx.quadraticCurveTo(bx-6+sw,Y+16,bx-2+sw,Y+8);cx.moveTo(bx,Y+28);cx.quadraticCurveTo(bx+6+sw,Y+18,bx+4+sw,Y+10);cx.stroke()}}}
+function trail(X,Y,x,y){cx.fillStyle='#3b3024';cx.fillRect(X,Y,TS,TS);cx.fillStyle='#2b2219';cx.fillRect(X,Y+10,TS,2);cx.fillRect(X,Y+22,TS,2);cx.fillStyle='#4f4030';cx.fillRect(X+hash(x,y,3)*26,Y+hash(x,y,4)*26,4,2)}
+function sand(X,Y,x,y){cx.fillStyle='#cbb683';cx.fillRect(X,Y,TS,TS);cx.fillStyle='#b39f6e';for(let i=0;i<4;i++)cx.fillRect(X+hash(x,y,i+60)*28,Y+hash(x,y,i+70)*28,2,2)}
+function bridge(X,Y,x,y){cx.fillStyle='#35699c';cx.fillRect(X,Y,TS,TS);cx.fillStyle='#8a5a34';cx.fillRect(X,Y,TS,TS);cx.fillStyle='#6b4426';for(let i=0;i<4;i++)cx.fillRect(X+i*8+7,Y,1,TS);
+  cx.fillStyle='#4a3220';if(tileAt('world',x,y-1)!=='B'){cx.fillRect(X,Y,TS,5);cx.fillRect(X+2,Y-6,3,8);cx.fillRect(X+26,Y-6,3,8)}if(tileAt('world',x,y+1)!=='B'){cx.fillRect(X,Y+27,TS,5)}}
 function groundOut(t,X,Y,x,y){
+  if(t==='d'||t==='y'){forestFloor(X,Y,x,y,t==='y');return} if(t==='~'){trail(X,Y,x,y);return} if(t==='s'){sand(X,Y,x,y);return} if(t==='B'){bridge(X,Y,x,y);return}
   switch(t){case '#':cobble(X,Y,x,y);break;case 'E':cobble(X,Y,x,y);arrow(X,Y,1);break;case '=':dirt(X,Y,x,y);break;
     case 'X':dirt(X,Y,x,y);arrow(X,Y,-1);break;case 'w':water(X,Y,x,y);break;case 'v':tall(X,Y,x,y);break;case 'W':townWall(X,Y);break;
     default:grass(X,Y,x,y);if(t==='f')['#f4e26b','#e88aa0','#ffffff'].forEach((c,i)=>{cx.fillStyle=c;cx.fillRect(X+4+hash(x,y,i+20)*22,Y+4+hash(x,y,i+30)*22,3,3)})}}
@@ -514,6 +566,12 @@ function tree(X,Y,x,y){cx.fillStyle='rgba(0,0,0,.22)';ell(X+16,Y+29,13,4);
   cx.fillStyle='#5a3d24';cx.fillRect(X+13,Y+16,7,15);cx.fillStyle='#2d5a2a';
   [[16,6,14],[7,12,9],[25,12,9],[16,-2,10]].forEach(([a,b,r])=>circ(X+a,Y+b,r));
   cx.fillStyle='#3b7034';circ(X+12,Y+2,7);circ(X+21,Y+6,6);cx.fillStyle='#4f8a40';circ(X+10,Y-1,3)}
+function darkTree(X,Y,x,y){cx.fillStyle='rgba(0,0,0,.3)';ell(X+16,Y+29,13,4);
+  if(hash(x,y,44)<.22){seg([X+16,Y+31,X+16,Y+6],5,'#3a3430');seg([X+16,Y+14,X+6,Y+4,X+2,Y-4],3,'#3a3430');seg([X+16,Y+10,X+26,Y,X+30,Y-8],3,'#3a3430');seg([X+16,Y+6,X+14,Y-8],2,'#3a3430');return}
+  cx.fillStyle='#2a1f1a';cx.beginPath();cx.moveTo(X+9,Y+31);cx.lineTo(X+13,Y+14);cx.lineTo(X+19,Y+14);cx.lineTo(X+24,Y+31);cx.fill();
+  cx.fillStyle='#15221a';[[16,6,15],[6,12,10],[26,12,10],[16,-4,11]].forEach(([a,b,r])=>circ(X+a,Y+b,r));
+  cx.fillStyle='#1d2f22';circ(X+11,Y,7);circ(X+22,Y+4,6);cx.fillStyle='#2b2d3c';circ(X+9,Y-3,3)}
+function shroom(X,Y,x,y){const c=hash(x,y,31)<.5?'#7ff0e0':'#c08cff';for(let i=0;i<3;i++){const mx=X+6+hash(x,y,i+80)*20,my=Y+14+hash(x,y,i+90)*12;cx.fillStyle='#d8d0c0';cx.fillRect(mx-1,my,2,5);cx.fillStyle=c;cx.beginPath();cx.arc(mx,my+1,4,Math.PI,0);cx.fill()}}
 function rock(X,Y){cx.fillStyle='rgba(0,0,0,.2)';ell(X+16,Y+28,12,4);cx.fillStyle='#7d786f';ell(X+16,Y+20,12,10);cx.fillStyle='#9a958b';ell(X+13,Y+16,6,4)}
 function tower(X,Y){const x0=X-6;cx.fillStyle='rgba(0,0,0,.25)';cx.fillRect(x0+4,Y+28,44,6);
   cx.fillStyle='#837c71';cx.fillRect(x0,Y-18,44,50);cx.fillStyle='#625c53';
@@ -701,20 +759,20 @@ function drawPerson(X,Y,o,dir='down',walk=0){
 const lc=document.createElement('canvas');lc.width=W;lc.height=H;const lx=lc.getContext('2d');
 const LIGHTS={};
 function mapLights(m){if(LIGHTS[m])return LIGHTS[m];const M=MAPS[m],L=[];
-  if(m==='town'){for(const b of BUILDINGS){bWindows(b).forEach(([x,y])=>L.push([x,y,46]));L.push([b.door*TS+16,(b.y+b.h-1)*TS+20,54])}
-    M.obj.forEach((r,y)=>{for(let x=0;x<r.length;x++){if(r[x]==='L')L.push([x*TS+16,y*TS-8,96]);if(r[x]==='Z'&&x===M.w-1&&(y===14||y===17))L.push([x*TS+16,y*TS,80])}})}
+  if(m==='world'){for(const b of BUILDINGS){bWindows(b).forEach(([x,y])=>L.push([x,y,46]));L.push([b.door*TS+16,(b.y+b.h-1)*TS+20,54])}
+    M.obj.forEach((r,y)=>{for(let x=0;x<r.length;x++){if(r[x]==='L')L.push([x*TS+16,y*TS-8,96]);if(r[x]==='m')L.push([x*TS+16,y*TS+18,44,1])}})}
   else if(!M.outdoor)M.tiles.forEach((r,y)=>{for(let x=0;x<r.length;x++){const t=r[x],X=x*TS,Y=y*TS;
     if(t==='5')L.push([X+16,Y+12,90]);if(t==='7')L.push([X+16,Y+24,120]);if(t==='n')L.push([X+16,Y+6,64]);if(t==='A'&&r[x-1]!=='A')L.push([X+48,Y+4,90])}});
   return LIGHTS[m]=L}
-function renderExplore(){
+function renderExplore(dt){
   const m=S.map,M=MAPS[m],night=S.time==='night',mw=M.w*TS,mh=M.h*TS;
   const k=P.moving?P.t:1,px=(P.fx+(P.x-P.fx)*k)*TS,py=(P.fy+(P.y-P.fy)*k)*TS;
   const camX=Math.round(mw<=W?-(W-mw)/2:clamp(px+16-W/2,0,mw-W)),camY=Math.round(mh<=H?-(H-mh)/2:clamp(py+16-H/2,0,mh-H));
   cx.fillStyle='#0b0806';cx.fillRect(0,0,W,H);
   cx.save();cx.translate(-camX,-camY);
-  const x0=Math.max(0,Math.floor(camX/TS)-1),x1=Math.min(M.w-1,x0+22),y0=Math.max(0,Math.floor(camY/TS)-1),y1=Math.min(M.h-1,y0+17);
+  const x0=Math.max(0,Math.floor(camX/TS)-1),x1=Math.min(M.w-1,x0+Math.ceil(W/TS)+2),y0=Math.max(0,Math.floor(camY/TS)-1),y1=Math.min(M.h-1,y0+Math.ceil(H/TS)+2);
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const t=tileAt(m,x,y),X=x*TS,Y=y*TS;
-    if(M.outdoor){groundOut(t,X,Y,x,y);if(objAt(m,x,y)==='q')crops(X,Y,x,y)}
+    if(M.outdoor){groundOut(t,X,Y,x,y);const o=objAt(m,x,y);if(o==='q')crops(X,Y,x,y);else if(o==='m')shroom(X,Y,x,y)}
     else{if(t===' ')continue;
       if(isWall(t)){if(t==='#'&&isWall(tileAt(m,x,y+1))||t==='#'&&tileAt(m,x,y+1)===' ')wallTop(X,Y);else{wallFace(M,X,Y);decor(t,X,Y,x,y,m,night)}}
       else if(t==='r')rug(m,X,Y,x,y);
@@ -723,24 +781,38 @@ function renderExplore(){
   const prow=P.moving?Math.max(P.y,P.fy):P.y,walk=P.moving?(P.t<.5?1:-1)*(P.step%2?1:-1):0;
   for(let y=y0;y<=Math.min(M.h-1,y1+8);y++){
     if(y<=y1+1)for(let x=x0;x<=x1;x++){const X=x*TS,Y=y*TS;
-      if(M.outdoor){const o=objAt(m,x,y);switch(o){case 'T':tree(X,Y,x,y);break;case 'R':rock(X,Y);break;case 'Z':tower(X,Y);break;case 'L':lamp(X,Y,night);break;case 'O':well(X,Y);break;
+      if(M.outdoor){const o=objAt(m,x,y);switch(o){case 'T':tree(X,Y,x,y);break;case 'K':darkTree(X,Y,x,y);break;case 'R':rock(X,Y);break;case 'Z':tower(X,Y);break;case 'L':lamp(X,Y,night);break;case 'O':well(X,Y);break;
         case 'k':stall(X,Y,x,y);break;case 'b':barrel(X,Y);break;case 'x':crate(X,Y);break;case 'h':hay(X,Y);break;case 'F':fence(X,Y);break;case 'P':signpost(X,Y);break}}
       else{const t=tileAt(m,x,y);if(t!==' '&&!isWall(t))furniture(t,X,Y,x,y,m)}}
-    if(m==='town')for(const b of BUILDINGS)if(b.y+b.h-1===y)drawBuilding(b,night);
-    for(const n of M.npcs)if(n.y===y)drawPerson(n.x*TS,n.y*TS+Math.sin(T*2+n.x)*.6,PEOPLE[n.kind],'down');
+    if(m==='world')for(const b of BUILDINGS)if(b.y+b.h-1===y&&b.x+b.w>=x0&&b.x<=x1)drawBuilding(b,night);
+    for(const n of M.npcs)if(n.y===y&&n.x>=x0&&n.x<=x1)drawPerson(n.x*TS,n.y*TS+Math.sin(T*2+n.x)*.6,PEOPLE[n.kind],'down');
     if(y===prow)drawPerson(px,py,PEOPLE.player,P.dir,walk);
   }
   cx.restore();
-  const dark=M.outdoor?(night?.64:0):(night?.42:.08);
-  if(dark>0){
-    lx.globalCompositeOperation='source-over';lx.clearRect(0,0,W,H);lx.fillStyle=M.outdoor?`rgba(9,13,42,${dark})`:`rgba(20,10,4,${dark})`;lx.fillRect(0,0,W,H);
-    lx.globalCompositeOperation='destination-out';const L=[...mapLights(m),[px+16,py+12,M.outdoor?84:60]];
+  const inF=m==='world'&&ZONE[P.y][P.x]===2;
+  if(inF||DARK>.2&&m==='world'){const fa=inF?1:.4;for(let i=0;i<7;i++){const fx2=((T*(6+i*2)*(i%2?1:-1)+i*260+camX*.3)%(W+400)+W+400)%(W+400)-200,fy=(i*97+60)%H;
+    cx.fillStyle=`rgba(160,180,190,${.06*fa})`;ell(fx2,fy,180,26)}}
+  const target=M.outdoor?(inF?(night?.8:.66):(night?.64:0)):(night?.42:.08);
+  const tc=M.outdoor?(inF?[4,12,18]:[9,13,42]):[20,10,4];
+  const a=Math.min(1,(dt||0)*2.5);DARK+=(target-DARK)*a;for(let i=0;i<3;i++)DARKC[i]+=(tc[i]-DARKC[i])*a;
+  if(!M.outdoor||!dt){DARK=target;DARKC=tc.slice()}
+  if(DARK>.01){
+    lx.globalCompositeOperation='source-over';lx.clearRect(0,0,W,H);lx.fillStyle=`rgba(${DARKC.map(Math.round).join(',')},${DARK})`;lx.fillRect(0,0,W,H);
+    lx.globalCompositeOperation='destination-out';const L=[...mapLights(m),[px+16,py+12,M.outdoor?(inF?104:88):60]];
     for(const [x,y,r] of L){const sx=x-camX,sy=y-camY;if(sx<-r||sy<-r||sx>W+r||sy>H+r)continue;const fl=1+Math.sin(T*9+x)*.03;
       const g=lx.createRadialGradient(sx,sy,0,sx,sy,r*fl);g.addColorStop(0,'rgba(0,0,0,.92)');g.addColorStop(1,'rgba(0,0,0,0)');lx.fillStyle=g;lx.beginPath();lx.arc(sx,sy,r*fl,0,7);lx.fill()}
     cx.drawImage(lc,0,0);
   }
-  if(night||!M.outdoor){cx.globalCompositeOperation='lighter';for(const [x,y,r] of mapLights(m)){const sx=x-camX,sy=y-camY;if(sx<-r||sy<-r||sx>W+r||sy>H+r)continue;
-    const g=cx.createRadialGradient(sx,sy,0,sx,sy,r*.55);g.addColorStop(0,`rgba(255,160,60,${night?.22:.1})`);g.addColorStop(1,'rgba(255,160,60,0)');cx.fillStyle=g;cx.beginPath();cx.arc(sx,sy,r*.55,0,7);cx.fill()}cx.globalCompositeOperation='source-over'}
+  if(DARK>.2||!M.outdoor){cx.globalCompositeOperation='lighter';for(const [x,y,r,cyan] of mapLights(m)){const sx=x-camX,sy=y-camY;if(sx<-r||sy<-r||sx>W+r||sy>H+r)continue;
+    const col=cyan?'120,255,225':'255,160,60',al=cyan?.28:(night?.22:.1);
+    const g=cx.createRadialGradient(sx,sy,0,sx,sy,r*.6);g.addColorStop(0,`rgba(${col},${al})`);g.addColorStop(1,`rgba(${col},0)`);cx.fillStyle=g;cx.beginPath();cx.arc(sx,sy,r*.6,0,7);cx.fill()}cx.globalCompositeOperation='source-over'}
+  if(m==='world'&&DARK>.4)for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if(objAt(m,x,y)!=='K'||hash(x,y,55)>.035)continue;
+    const v=Math.sin(T*.6+hash(x,y,56)*40);if(v<.9)continue;const sx=x*TS-camX,sy=y*TS-camY,blink=Math.sin(T*7+x)>.95?0:1;
+    cx.fillStyle=hash(x,y,57)<.5?`rgba(255,207,74,${blink})`:`rgba(255,74,60,${blink})`;cx.fillRect(sx+10,sy+4,3,2);cx.fillRect(sx+19,sy+4,3,2)}
+  if(AREA&&AREA.t>0){AREA.t-=dt||0;const al=clamp(Math.min(AREA.t,2.6-AREA.t)*2.5,0,1);cx.globalAlpha=al;cx.font='34px "Jacquard 24", Georgia, serif';
+    const tw=cx.measureText(AREA.name).width+70,bx=(W-tw)/2,by=26;cx.fillStyle='#20160f';cx.fillRect(bx-4,by-4,tw+8,58);cx.fillStyle='#eadbb4';cx.fillRect(bx,by,tw,50);
+    cx.fillStyle='#8a6a3e';cx.fillRect(bx,by,tw,3);cx.fillRect(bx,by+47,tw,3);cx.fillStyle='#8b2e24';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(AREA.name,W/2,by+27);
+    cx.textAlign='left';cx.textBaseline='alphabetic';cx.globalAlpha=1}
 }
 
 /* =================== MONSTERS =================== */
@@ -784,6 +856,11 @@ function drawMonster(id,k,fl){
     cx.fillStyle=g;cx.beginPath();cx.moveTo(-46,y-10);cx.bezierCurveTo(-50,y-90,-34,y-152,0,y-152);cx.bezierCurveTo(34,y-152,50,y-90,46,y-10);
     for(let i=0;i<=6;i++)cx.lineTo(46-i*92/6,y-10+Math.sin(T*4+i)*7+(i%2?14:0));cx.closePath();cx.fill();
     cx.fillStyle=c('#1a1030');ell(0,y-112,21,25);cx.fillStyle=c('#8ff6ff');if(!fl){cx.shadowColor='#8ff6ff';cx.shadowBlur=14}circ(-8,y-114,4);circ(8,y-114,4);cx.shadowBlur=0;break}
+  case 'spider':{const b=k*3,leg=c('#1e1826');
+    [-1,1].forEach(s=>{for(let i=0;i<4;i++){const kx=s*(36+i*10),ky=-74+i*14-b+Math.sin(T*6+i+s)*3,fx2=s*(58+i*14),fy=-2;seg([s*12,-40-b,kx,ky,fx2,fy],5,leg)}});
+    cx.fillStyle=c('#2a2233');ell(0,-66-b,38,30);cx.fillStyle=c('#8a2e6b');ell(0,-72-b,8,12);ell(0,-56-b,6,6);
+    cx.fillStyle=c('#352b40');ell(0,-34-b,22,16);cx.fillStyle=c('#ff3b3b');[[-8,-38],[8,-38],[-4,-42],[4,-42],[-12,-34],[12,-34]].forEach(([ex,ey])=>circ(ex,ey-b,ex*ex<50?3:2));
+    cx.fillStyle=c('#e9e4d2');tri(-8,-24-b,-4,-24-b,-6,-14-b);tri(4,-24-b,8,-24-b,6,-14-b);break}
   case 'werewolf':{const b=k*3,fur=c('#6c6f7c'),dark=c('#4b4d57'),light=c('#9a9cab');
     cx.fillStyle=dark;cx.beginPath();cx.moveTo(-32,-52);cx.lineTo(-8,-52);cx.lineTo(-12,0);cx.lineTo(-36,0);cx.closePath();cx.fill();cx.beginPath();cx.moveTo(32,-52);cx.lineTo(8,-52);cx.lineTo(12,0);cx.lineTo(36,0);cx.closePath();cx.fill();
     cx.fillStyle=fur;ell(0,-84-b,44,46);cx.fillStyle=light;ell(0,-78-b,24,30);
@@ -796,15 +873,16 @@ function drawMonster(id,k,fl){
 }
 
 /* =================== BATTLE =================== */
-function startBattle(){
-  const pool=MON.filter(m=>m.time===S.time&&(m.min||1)<=S.lv);let r=Math.random()*pool.reduce((a,m)=>a+m.w,0),base=pool[0];
+function startBattle(zone='wilds'){
+  const forest=zone==='forest';
+  const pool=MON.filter(m=>(forest?(m.time==='night'||m.time==='forest'):m.time===S.time)&&(m.min||1)<=S.lv);let r=Math.random()*pool.reduce((a,m)=>a+m.w,0),base=pool[0];
   for(const m of pool){if((r-=m.w)<0){base=m;break}}
-  const lv=Math.max(1,S.lv+ri(-1,1)),k=lv-1;
+  const lv=Math.max(1,S.lv+ri(-1,1)+(forest?1:0)),k=lv-1;
   const m={...base,lv,maxhp:Math.round(base.hp*(1+.22*k)),atk:Math.round(base.atk*(1+.14*k)),def:Math.round(base.def*(1+.12*k)),xp:Math.round(base.xp*(1+.25*k)),g:Math.round(base.g*(1+.2*k))};
   m.hp=m.maxhp;
-  B={m,busy:false,menu:'main',fx:[],shake:0,flash:0,pflash:0,lunge:0,alpha:1,slash:0,fire:0,intro:1,over:false,lines:[]};
+  B={m,zone,busy:false,menu:'main',fx:[],shake:0,flash:0,pflash:0,lunge:0,alpha:1,slash:0,fire:0,intro:1,over:false,lines:[]};
   scene='battle';held.length=0;$('#battleUI').hidden=false;$('#controls').style.display='none';
-  log(`A level ${lv} ${m.n} leaps from the grass!`);
+  log(forest?`A level ${lv} ${m.n} lunges out of the dark!`:`A level ${lv} ${m.n} leaps from the grass!`);
   if(Math.random()<clamp(.18+(m.agi-S.st.agi)*.04,.05,.5)){B.busy=true;log(`The ${m.n} strikes first!`);setTimeout(enemyTurn,900)}
   renderActions();
 }
@@ -848,6 +926,7 @@ function enemyTurn(){
   if(m.id==='skeleton'&&sp<.22){mult=1.3;verb='hurls a bone'}
   if(m.id==='wraith'&&sp<.25){const dr=Math.min(S.mp,ri(3,6));S.mp-=dr;mult=.7;verb=`drains ${dr} MP and strikes`}
   if(m.id==='werewolf'&&sp<.22){hits=2;mult=.75;verb='slashes twice'}
+  if(m.id==='spider'&&sp<.25){mult=1.5;verb='sinks venomous fangs in'}
   let total=0;
   for(let i=0;i<hits;i++){if(Math.random()<dodge())continue;total+=Math.max(1,Math.round(m.atk*mult*rnd(.85,1.15)-defn()*.5))}
   if(total>0){S.hp-=total;B.pflash=.35;fx('-'+total,320,420,'#ff5a4e',true);log(`The ${m.n} ${verb} for ${total} damage.`);
@@ -875,9 +954,21 @@ function castle(night){cx.fillStyle=night?'#151a36':'#7a92a0';const bx=70,by=232
   [[bx-6,52],[bx+50,70],[bx+112,52]].forEach(([x,h])=>{cx.fillRect(x,by-h,22,h);for(let i=0;i<3;i++)cx.fillRect(x+i*8,by-h-6,5,6)});
   for(let i=0;i<14;i++)cx.fillRect(bx+i*9,by-36,5,6);cx.fillRect(bx+60,by-96,2,26);cx.fillStyle=night?'#2b1b3a':'#8b2e24';cx.fillRect(bx+62,by-96,12,7);
   if(night){cx.fillStyle='#ffcf6a';[[bx+12,by-34],[bx+58,by-50],[bx+120,by-30],[bx+90,by-16]].forEach(([x,y])=>cx.fillRect(x,y,3,4))}}
+function forestBg(){const W=640;const g=cx.createLinearGradient(0,0,0,300);g.addColorStop(0,'#04060c');g.addColorStop(1,'#17222a');cx.fillStyle=g;cx.fillRect(-20,-20,W+40,330);
+  cx.fillStyle='rgba(220,230,255,.35)';circ(520,70,20);
+  for(let row=0;row<2;row++)for(let i=0;i<10;i++){const x=i*76+row*38-20+hash(i,row,3)*20,h=190+hash(i,row,4)*80;cx.fillStyle=row?'#101a14':'#0a110d';cx.fillRect(x-7,300-h+50,14,h);
+    [[0,-h+50,42],[-26,-h+84,30],[26,-h+84,30]].forEach(([dx,dy,r])=>circ(x+dx,300+dy,r))}
+  for(let i=0;i<6;i++){if(Math.sin(T*.8+i*2.3)<.55)continue;cx.fillStyle=i%2?'#ffcf4a':'#ff4a3c';const ex=60+i*100+hash(i,9,1)*30,ey=170+hash(i,8,1)*70;cx.fillRect(ex,ey,4,3);cx.fillRect(ex+10,ey,4,3)}
+  cx.fillStyle='#141e17';cx.fillRect(-20,290,W+40,210);cx.fillStyle='#1b2a1f';ell(320,345,200,36);
+  cx.strokeStyle='#0e1611';cx.lineWidth=2;for(let i=0;i<40;i++){const x=hash(i,5)*W,y=300+hash(i,6)*180;cx.beginPath();cx.moveTo(x,y);cx.lineTo(x-3,y-8);cx.moveTo(x,y);cx.lineTo(x+3,y-7);cx.stroke()}
+  for(let i=0;i<4;i++){cx.fillStyle='rgba(170,190,200,.08)';ell(((T*14+i*220)%900)-130,300+i*40,170,22)}}
 function renderBattle(dt){
-  const m=B.m,night=S.time==='night';
+  cx.save();cx.scale(W/640,H/480);renderBattleInner(dt);cx.restore();
+}
+function renderBattleInner(dt){
+  const W=640,H=480,m=B.m,night=S.time==='night';
   cx.save();if(B.pflash>0&&!reduce)cx.translate(rnd(-1,1)*B.pflash*16,rnd(-1,1)*B.pflash*10);
+  if(B.zone==='forest')forestBg();else{
   const g=cx.createLinearGradient(0,0,0,300);if(night){g.addColorStop(0,'#090c26');g.addColorStop(1,'#2b2f63')}else{g.addColorStop(0,'#7dbbe6');g.addColorStop(1,'#d3ecf6')}
   cx.fillStyle=g;cx.fillRect(-20,-20,W+40,330);
   if(night){for(let i=0;i<70;i++){cx.fillStyle=`rgba(255,250,230,${.3+.5*(.5+.5*Math.sin(T*2+i))})`;cx.fillRect(hash(i,1)*W,hash(i,2)*250,2,2)}
@@ -887,7 +978,7 @@ function renderBattle(dt){
   cx.fillStyle=night?'#1d3527':'#86b86d';ell(120,300,230,62);ell(500,310,270,84);
   cx.fillStyle=night?'#25432b':'#5f9a48';cx.fillRect(-20,290,W+40,210);
   cx.fillStyle=night?'#2f5436':'#6fae55';ell(320,345,200,36);
-  cx.strokeStyle=night?'#1c3322':'#4a823a';cx.lineWidth=2;for(let i=0;i<46;i++){const x=hash(i,5)*W,y=300+hash(i,6)*180;cx.beginPath();cx.moveTo(x,y);cx.lineTo(x-3,y-8);cx.moveTo(x,y);cx.lineTo(x+3,y-7);cx.stroke()}
+  cx.strokeStyle=night?'#1c3322':'#4a823a';cx.lineWidth=2;for(let i=0;i<46;i++){const x=hash(i,5)*W,y=300+hash(i,6)*180;cx.beginPath();cx.moveTo(x,y);cx.lineTo(x-3,y-8);cx.moveTo(x,y);cx.lineTo(x+3,y-7);cx.stroke()}}
   const bob=(Math.sin(T*3)+1)/2,sx=B.shake>0&&!reduce?Math.sin(T*80)*B.shake*22:0,lp=B.lunge>0?Math.sin((B.lunge/.3)*Math.PI):0;
   cx.globalAlpha=Math.max(0,B.alpha);
   cx.fillStyle='rgba(0,0,0,.25)';ell(320,344,m.fly?46:78,m.fly?8:12);
@@ -916,7 +1007,7 @@ function frame(now){
   if(scene==='explore'){
     if(P.moving){P.t+=dt/.17;if(P.t>=1){P.t=1;P.moving=false;arrive()}}
     if(!P.moving&&canMove()&&held.length)tryMove(held[held.length-1]);
-    renderExplore();
+    renderExplore(dt);
   }else if(B)renderBattle(dt);
   requestAnimationFrame(frame);
 }
