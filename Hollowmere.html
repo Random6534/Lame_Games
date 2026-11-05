@@ -1386,7 +1386,7 @@ function load(){
     if(s.map==='town'){n.map='world';n.x=s.x+OX;n.y=s.y+OY}else if(s.map==='field'||!MAPS[s.map]){n.map='world';n.x=OX+46;n.y=OY+15}return n}}catch(e){}
   try{const o=JSON.parse(localStorage.getItem(OLD));if(o&&o.st){const s=NEW();['lv','xp','gold','hp','mp','st','pts','bag','wpn','arm','time','kills'].forEach(k=>{if(o[k]!==undefined)s[k]=o[k]});return s}}catch(e){}
   return null}
-let fresh=false, S=load(); if(!S){S=NEW();fresh=true}
+let fresh=false, S=load(); if(!S){S=NEW();S.wv=3;S.map='inn';S.x=6;S.y=12;S.dir='up';fresh=true}
 if(S.min===undefined){S.min=S.time==='night'?21*60:8*60;S.day=S.day||0}
 S.bag=Object.assign({potion:0,hipotion:0,ether:0,elixir:0,flask:0,smoke:0},S.bag);initGear();S.broken=S.broken||{};S.ko=S.ko||[];
 if(S.wv!==3){const scaled=S.wv===2,mv=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);return k.slice(0,i+1)+(x+OFX)+','+(y+OFY)};
@@ -1673,7 +1673,7 @@ function openStats(){
   },a=>{
     if(a.startsWith('add:')&&S.pts>0){const k=a.slice(4);S.st[k]++;S.pts--;if(k==='vit')S.hp+=6;if(k==='int')S.mp+=4;save();hud()}
     if(a==='reset')confirmReset=true;if(a==='noreset')confirmReset=false;
-    if(a==='doreset'){S=NEW();S.wv=3;S.ult=1;initGear();grantUltimate();S.hp=maxHP();S.mp=maxMP();placePlayer(OX+7,OY+11,'down');save();hud();closeModal();openIntro();return false}
+    if(a==='doreset'){S=NEW();S.wv=3;S.ult=1;initGear();grantUltimate();S.hp=maxHP();S.mp=maxMP();S.map='inn';placePlayer(6,12,'up');MOBS=[];CELLS.clear();save();checkArea();hud();closeModal();openIntro();return false}
   });
 }
 const useRow=(n,d,q,a,dis)=>`<div class="item"><div><b>${n}</b><small>${d}</small></div><span class="price">×${q}</span><button class="btn sm" data-a="${a}" ${dis?'disabled':''}>Use</button></div>`;
