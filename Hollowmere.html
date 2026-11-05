@@ -1547,6 +1547,7 @@ function attack(){
   const [dx,dy]=DIRS[P.dir],x=P.x+dx,y=P.y+dy,M=MAPS[S.map];
   const n=npcAt(x,y);if(n){if(n.kind==='cat'){say('Whiskers','Whiskers dodges your swing and gives you a deeply offended look.');return}attackNPC(n);return}
   const bs=bossAt(x,y);if(bs){openBoss(bs);return}
+  {const mb=mobAt(x,y);if(mb){engage(mb);return}}
   const c=M.outdoor?objAt(S.map,x,y):tileAt(S.map,x,y),D=DESTR[c];if(!D||(!M.outdoor&&!'bxs'.includes(c)))return;
   const key=S.map+':'+x+','+y,hp=(OBJHP.has(key)?OBJHP.get(key):D.hp)-(1+Math.floor(atk()/12));
   SHAKE.set(key,.25);chips(x,y,D.fx);
@@ -1850,11 +1851,84 @@ function openIntro(){modal(()=>`<h2>Hollowmere</h2><p>A walled market town in th
   <p class="sub">Walk into a door to go inside. At the Sleeping Stag Inn, check in with Bram, then sleep in a bed to switch between day and night. Different monsters hunt the meadows at night. The Darkwood is always dark and always dangerous. Townsfolk with a gold ! have quests. Press M for the map and Q for your quest log. Each level gives you 3 talent points.</p>
   <div class="mfoot"><button class="btn seal" data-a="close">Begin</button></div>`)}
 
+/* =================== ROAMING ENEMIES =================== */
+/* Enemies live on the map. They spawn just outside the view, wander or stand guard, and some give chase. */
+const ENCZ={0:['v','wilds'],2:['dy~','forest'],3:['M','marsh'],4:['g','crags'],5:['u.','ruins'],7:['u.dM','ancient'],8:['*i','tundra'],9:['a','volcano'],10:['Ds','desert'],11:['hsv','coast']};
+const AGGRO=new Set(['goblin','bat','skeleton','wraith','werewolf','spider','hag','kobold','harpy','ghoul','rat','cknight','frostwolf','yeti','icewraith','snowharpy','scorpion','mummy','bandit','imp','magmagolem','flamewisp','ashghoul','drowned','siren','seahag','wisp']);
+const FLYERS=new Set(['bee','bat','wraith','wisp','harpy','icewraith','snowharpy','flamewisp','siren']);
+const MSCALE={golem:.24,yeti:.24,magmagolem:.24,werewolf:.26,boar:.29,slime:.31,rat:.33,toad:.31,reeftoad:.31,mudling:.31,sludge:.29,sandwyrm:.26,frostwolf:.2};
+let MOBS=[],MOBMAP='',MOBTIME='',MOBGRACE=0,MOBTICK=0,MID=0;const CELLS=new Map(),CS=8;
+function rollMon(zone){const ids=POOLS[zone+'_'+S.time]||POOLS[zone];const lv=Math.max(ZMIN[zone]||1,S.lv+ri(-1,1)+(ZOFF[zone]||0));
+  const pool=MON.filter(x=>ids.includes(x.id)&&(x.min||1)<=lv);let r=Math.random()*pool.reduce((a,x)=>a+x.w,0),base=pool[0];for(const x of pool){if((r-=x.w)<0){base=x;break}}const k=lv-1;
+  return {...base,lv,hp:Math.round(base.hp*(1+.22*k)),atk:Math.round(base.atk*(1+.14*k)),def:Math.round(base.def*(1+.12*k)),xp:Math.round(base.xp*(1+.25*k)),g:Math.round(base.g*(1+.2*k))}}
+function banditGroup(zn){const kind={tundra:['Frostreaver Scout','reaver'],volcano:['Ash Cultist','cultist'],desert:['Dune Raider','raider'],coast:['Wrecker','pirate']}[zn]||[isNightNow()?'Road Cutthroat':'Highway Bandit','bandit'];
+  const lv=Math.max(ZMIN[zn]||1,S.lv+ri(-1,1)),n=S.lv<4?1:ri(2,3),xp=(15+lv*8)*n,g=(12+lv*7)*n;
+  return Array.from({length:n},(_,i)=>({id:'person',v:kind[1],n:kind[0]+(n>1?' '+(i+1):''),lv,hp:Math.round(28+lv*11),atk:Math.round(7+lv*2.3),def:Math.round(2+lv*.8),agi:9,xp,g}))}
+const mobAt=(x,y)=>MOBS.find(b=>b.x===x&&b.y===y&&b.map===S.map);
+function mobInfo(m){const M=MAPS[m];if(M.outdoor)return null;return M.enc?[',o=g',M.enc]:null}
+function mobEligible(m,x,y){const M=MAPS[m];if(M.outdoor){const z=ZONE[y]&&ZONE[y][x];const E=ENCZ[z];if(!E)return null;return E[0].includes(tileAt(m,x,y))?E[1]:null}
+  if(!M.enc)return null;return ',o=g'.includes(tileAt(m,x,y))?M.enc:null}
+function mobFree(mb,x,y){const M=MAPS[mb.map];if(x<1||y<1||x>=M.w-1||y>=M.h-1)return false;if(terrainSolid(mb.map,x,y))return false;
+  if(S.map===mb.map&&P.x===x&&P.y===y)return false;if(npcAt(x,y)||bossAt(x,y))return false;if(MOBS.some(o=>o!==mb&&(o.x===x&&o.y===y||o.moving&&o.fx===x&&o.fy===y)))return false;
+  if(M.outdoor){const z=ZONE[y][x];if(z===1||z===6||z!==mb.zone)return false;const t=tileAt(mb.map,x,y);if(t==='V'||t==='Q')return false}else{const t=tileAt(mb.map,x,y);if('<>D'.includes(t))return false}
+  return true}
+function viewTiles(){const M=MAPS[S.map];const cw=Math.ceil(W/TS),ch=Math.ceil(H/TS);return [P.x-(cw>>1)-1,P.y-(ch>>1)-1,P.x+(cw>>1)+1,P.y+(ch>>1)+1]}
+function spawnCell(m,ci,cj,visible){const key=m+':'+ci+','+cj;const st=CELLS.get(key);if(st&&(st.live||!st.until||T<st.until||visible))return;
+  const M=MAPS[m],x0=ci*CS,y0=cj*CS,el=[],road=[];
+  for(let y=y0;y<y0+CS&&y<M.h;y++)for(let x=x0;x<x0+CS&&x<M.w;x++){const zn=mobEligible(m,x,y);if(zn)el.push([x,y,zn]);
+    else if(M.outdoor&&'=~B'.includes(tileAt(m,x,y))){const z=ZONE[y][x];if(z!==1&&z!==6&&ENCZ[z])road.push([x,y,ENCZ[z][1]])}}
+  const groups=[];const dens=el.length/(CS*CS);
+  if(el.length>=10){const p=M.outdoor?Math.min(.42,.08+dens*.38):.38;if(Math.random()<p)groups.push(pick(el));if(el.length>48&&Math.random()<p*.25)groups.push(pick(el))}
+  if(road.length>=4&&M.outdoor&&Math.hypot(x0-OX-22,y0-OY-16)>26&&Math.hypot(x0-CX-31,y0-CY-24)>30&&Math.random()<.07)groups.push([...pick(road),1]);
+  CELLS.set(key,{live:0,until:0});
+  for(const g of groups){const [x,y,zn,isRoad]=g;if(Math.abs(x-P.x)+Math.abs(y-P.y)<7)continue;
+    const mb={id:++MID,map:m,cell:key,x,y,fx:x,fy:y,t:1,moving:false,dir:Math.random()<.5?'left':'right',home:[x,y],zone:M.outdoor?ZONE[y][x]:0,zn,wait:Math.random()*3,step:0};
+    if(isRoad){mb.mons=banditGroup(zn);mb.person=1;mb.guard=1;mb.aggro=1}
+    else{const a=rollMon(zn);mb.mons=[a];if(Math.random()<(S.lv>=4?.22:.08)){const b2=rollMon(zn);mb.mons.push(b2)}mb.aggro=AGGRO.has(a.id);mb.guard=Math.random()<.3}
+    if(!mobFree(mb,x,y))continue;MOBS.push(mb);CELLS.get(key).live++}}
+function mobStep(mb,nx,ny,spd){mb.dir=nx>mb.x?'right':nx<mb.x?'left':mb.dir;mb.fx=mb.x;mb.fy=mb.y;mb.x=nx;mb.y=ny;mb.t=0;mb.moving=true;mb.spd=spd;mb.step++}
+function engage(mb){if(scene!=='explore'||B)return;held.length=0;mb.engaged=1;const mons=mb.mons.map(q=>({...q}));startBattle(mb.zn,null,{mons,mob:mb});if(B)B.mob=mb}
+function updateMobs(dt){
+  if(MOBMAP!==S.map||MOBTIME!==S.time){MOBS=[];for(const [k,v] of CELLS)v.live=0;MOBMAP=S.map;MOBTIME=S.time}
+  const M=MAPS[S.map];if(!(M.outdoor||M.enc))return;
+  MOBTICK-=dt;if(MOBTICK<=0){MOBTICK=.4;const [vx0,vy0,vx1,vy1]=viewTiles(),mg=CS;
+    for(let cj=Math.floor((vy0-mg)/CS);cj<=Math.floor((vy1+mg)/CS);cj++)for(let ci=Math.floor((vx0-mg)/CS);ci<=Math.floor((vx1+mg)/CS);ci++){if(ci<0||cj<0)continue;
+      const inView=ci*CS+CS>vx0&&ci*CS<vx1&&cj*CS+CS>vy0&&cj*CS<vy1;spawnCell(S.map,ci,cj,inView)}
+    MOBS=MOBS.filter(mb=>{const far=Math.abs(mb.x-P.x)>vx1-vx0+CS*1.5||Math.abs(mb.y-P.y)>vy1-vy0+CS*1.5;if(far&&!mb.chase){const c=CELLS.get(mb.cell);if(c)c.live=Math.max(0,c.live-1);
+      if(c&&!c.live)CELLS.delete(mb.cell);return false}return true})}
+  if(scene!=='explore'||modalOpen()||fading||MMODE===2)return;
+  const night=isNightNow();
+  for(const mb of MOBS){if(mb.moving){mb.t+=dt/mb.spd;if(mb.t>=1){mb.t=1;mb.moving=false}else continue}
+    const d=Math.abs(mb.x-P.x)+Math.abs(mb.y-P.y);
+    if(mb.chase&&d===1&&!P.moving&&T>MOBGRACE){mb.dir=P.x>mb.x?'right':P.x<mb.x?'left':mb.dir;engage(mb);return}
+    const sense=(mb.person?4:night?5:4)+(mb.chase?5:0);
+    if(mb.aggro&&T>MOBGRACE&&T>(mb.calm||0)&&d<=sense&&!FREEZE){if(!mb.chase){mb.chase=1;mb.alert=1.2}
+      const opts=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>[mb.x+dx,mb.y+dy]).filter(([x,y])=>mobFree(mb,x,y)).sort((a,b2)=>Math.abs(a[0]-P.x)+Math.abs(a[1]-P.y)-Math.abs(b2[0]-P.x)-Math.abs(b2[1]-P.y));
+      if(opts.length&&Math.abs(opts[0][0]-P.x)+Math.abs(opts[0][1]-P.y)<d)mobStep(mb,opts[0][0],opts[0][1],mb.person?.24:.27);else{mb.stuck=(mb.stuck||0)+dt;if(mb.stuck>2){mb.chase=0;mb.calm=T+3;mb.stuck=0}}continue}
+    if(mb.chase){mb.chase=0}
+    mb.wait-=dt;if(mb.wait>0)continue;mb.wait=mb.guard?2+Math.random()*3:1+Math.random()*2.5;
+    if(mb.guard&&Math.abs(mb.x-mb.home[0])+Math.abs(mb.y-mb.home[1])===0){if(Math.random()<.5)mb.dir=mb.dir==='left'?'right':'left';continue}
+    const back=Math.abs(mb.x-mb.home[0])+Math.abs(mb.y-mb.home[1])>(mb.guard?0:4);
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]].sort(()=>Math.random()-.5).map(([dx,dy])=>[mb.x+dx,mb.y+dy]).filter(([x,y])=>mobFree(mb,x,y)&&(MAPS[mb.map].outdoor?!!mobEligible(mb.map,x,y)||mb.person:true));
+    if(back)dirs.sort((a,b2)=>Math.abs(a[0]-mb.home[0])+Math.abs(a[1]-mb.home[1])-Math.abs(b2[0]-mb.home[0])-Math.abs(b2[1]-mb.home[1]));
+    if(dirs.length)mobStep(mb,dirs[0][0],dirs[0][1],.5)}}
+function mobAfter(mb,lost,fled){MOBGRACE=T+2.5;if(lost){MOBS=[];return}
+  if(fled){mb.chase=0;mb.calm=T+6;mb.engaged=0;return}
+  MOBS=MOBS.filter(q=>q!==mb);const c=CELLS.get(mb.cell);if(c){c.live=Math.max(0,c.live-1);c.until=T+150}}
+function drawMob(mb){const k=mb.moving?mb.t:1,X=(mb.fx+(mb.x-mb.fx)*k)*TS,Y=(mb.fy+(mb.y-mb.fy)*k)*TS,walk=mb.moving?(mb.t<.5?1:-1)*(mb.step%2?1:-1):0;
+  const n=mb.mons.length;
+  if(mb.person){for(let i=n-1;i>=0;i--){const ox=(i-(n-1)/2)*9,oy=-i%2*3;drawPerson(X+ox,Y+oy,PEOPLE[mb.mons[i].v]||PEOPLE.bandit,mb.dir==='left'?'left':mb.dir==='right'?'right':'down',walk)}}
+  else for(let i=n-1;i>=0;i--){const q=mb.mons[i],sc=(MSCALE[q.id]||.27)*(i?.85:1),fly=FLYERS.has(q.id),bob=fly?Math.sin(T*4+mb.id)*3-8:0;const ox=i?(mb.dir==='left'?12:-12):0;
+    cx.fillStyle='rgba(0,0,0,.25)';ell(X+16+ox,Y+29,10*(sc/.27),3);cx.save();cx.translate(X+16+ox,Y+30+bob+(mb.moving?-Math.abs(Math.sin(mb.t*Math.PI))*2:0));cx.scale(mb.dir==='right'?-sc:sc,sc);
+    drawMonster(q.id,(Math.sin(T*3+mb.id)+1)/2,false,q.v);cx.restore()}
+}
+
 /* =================== EXPLORE LOGIC =================== */
 const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
 const canMove=()=>scene==='explore'&&!modalOpen()&&!fading&&!FREEZE&&MMODE!==2;
 function tryMove(d){
   P.dir=d;const [dx,dy]=DIRS[d],nx=P.x+dx,ny=P.y+dy;
+  {const mb=mobAt(nx,ny);if(mb){engage(mb);return}}
   if(isSolid(nx,ny)){interactAt(nx,ny,true);return}
   P.fx=P.x;P.fy=P.y;P.x=nx;P.y=ny;P.t=0;P.moving=true;P.step++;
 }
@@ -1947,9 +2021,7 @@ function arrive(){
   if(S.map==='world'&&g==='Q'){fade(()=>{S.map='sewer';placePlayer(MAPS.sewer.spawn[0],MAPS.sewer.spawn[1],'down');save();checkArea();hud()},null,true);return}
   save();checkArea();
   if(S.map==='world'){const z=ZONE[P.y][P.x],E={0:['v','wilds',.14],2:['dy~','forest',.12],3:['M','marsh',.12],4:['g','crags',.11],5:['u.','ruins',.12],7:['u.dM','ancient',.13],8:['*i','tundra',.1],9:['a','volcano',.11],10:['Ds','desert',.1],11:['hsv','coast',.11]}[z];
-    if('=~B'.includes(g)&&z!==1&&z!==6&&roadAmbush(z))return;
-    if(E&&E[0].includes(g)){P.enc++;if(P.enc>=3&&Math.random()<(g==='~'?.05:E[2])*.75){P.enc=0;startBattle(E[1])}}}
-  else if(M.enc&&',o=g'.includes(g)){P.enc++;if(P.enc>=4&&Math.random()<.075){P.enc=0;startBattle(M.enc)}}
+    }
 }
 
 /* =================== DRAW HELPERS =================== */
@@ -2478,6 +2550,7 @@ function renderExplore(dt){
     if(y<=y1+1)for(let x=x0;x<=x1;x++){let X=x*TS;const Y=y*TS;if(SHAKE.size){const sk=SHAKE.get(m+':'+x+','+y);if(sk)X+=Math.sin(T*70)*3*sk/.25}
       if(M.outdoor)drawObj(m,objAt(m,x,y),X,Y,x,y,night);else{const t=tileAt(m,x,y);if(FURNSET.has(t))drawFurn(m,t,X,Y,x,y)}}
     if(m==='world')for(const b of BUILDINGS)if(b.y+b.h-1===y&&b.x+b.w>=x0&&b.x<=x1)drawBuildingCached(b,night);
+    for(const mb of MOBS)if(mb.map===m&&(mb.moving?Math.max(mb.y,mb.fy):mb.y)===y&&mb.x>=x0-2&&mb.x<=x1+2)drawMob(mb);
     for(const n of M.npcs)if((n.moving?Math.max(n.y,n.fy):n.y)===y&&n.x>=x0-1&&n.x<=x1+1&&!n.hidden&&(!n.when||n.when())&&!isKO(n)){const nx=n.moving?(n.fx+(n.x-n.fx)*n.t)*TS:n.x*TS,ny=n.moving?(n.fy+(n.y-n.fy)*n.t)*TS:n.y*TS;if(n.kind==='cat')drawCat(nx,ny);else drawPerson(nx,ny+(n.moving?0:Math.sin(T*2+n.x)*.6),PEOPLE[n.kind],n.dir||'down',n.moving?(n.t<.5?1:-1)*(n.step%2?1:-1):0);const mk=qMark(n.kind);if(mk)drawMark(nx+16,ny-14,mk)}
     for(const b of BOSSES)if((b.map||'world')===m&&b.y===y&&!S.bossDown.includes(b.id)&&b.x>=x0-2&&b.x<=x1+2){const bx=b.x*TS+16,by=b.y*TS+30,p=.5+.5*Math.sin(T*3);
       cx.fillStyle=`rgba(200,40,40,${.18+.12*p})`;ell(bx,by-2,30+p*4,9);cx.save();cx.translate(bx,by);cx.scale(b.scale,b.scale);drawMonster(b.mon,(Math.sin(T*2)+1)/2,false,b.v);cx.restore();
@@ -2787,7 +2860,16 @@ const BA=(()=>{let FL=false;const c=x=>FL?'#ffffff':x;
 
   return (id,k,fl,v)=>{const f=art[id];if(!f)return false;FL=!!fl;cx.save();cx.lineCap='round';cx.lineJoin='round';f(k,v);cx.restore();cx.shadowBlur=0;return true}})();
 
-function drawMonster(id,k,fl,v){if(ELITE_ART[id]&&!fl){const p=.5+.5*Math.sin(T*3),g=cx.createRadialGradient(0,-70,10,0,-70,130);g.addColorStop(0,`rgba(255,210,90,${.25+.12*p})`);g.addColorStop(1,'rgba(255,210,90,0)');cx.fillStyle=g;circ(0,-70,130)}const a=ART[id];if(a){const f=cx.filter;cx.filter=a[1];drawMonster0(a[0],k,fl,v);cx.filter=f||'none';return}drawMonster0(id,k,fl,v)}
+function drawMonster(id,k,fl,v){if(ELITE_ART[id]&&!fl){const p=.5+.5*Math.sin(T*3),g=cx.createRadialGradient(0,-70,10,0,-70,130);g.addColorStop(0,`rgba(255,210,90,${.25+.12*p})`);g.addColorStop(1,'rgba(255,210,90,0)');cx.fillStyle=g;circ(0,-70,130)}const a=ART[id];if(a&&!fl){drawTinted(id,a,k,v);return}if(a){drawMonster0(a[0],k,fl,v);return}drawMonster0(id,k,fl,v)}
+/* Recolored monsters are drawn once per animation frame into a cache, so the slow canvas filter never runs every frame */
+const TCACHE=new Map();let TPIX=0;
+function drawTinted(id,a,k,v){const m=cx.getTransform(),s=Math.hypot(m.a,m.b);const q=s<.8?Math.max(.1,Math.round(s*10)/10):Math.min(2,Math.ceil(s*1.25)/1.25),nf=s<1?6:4,fi=Math.round(clamp(k,0,1)*(nf-1));
+  const key=id+'|'+q+'|'+fi+'|'+(v||'');let c=TCACHE.get(key);
+  if(!c){const X0=240,Y0=380,BW=480,BH=410;const raw=document.createElement('canvas');raw.width=Math.ceil(BW*q);raw.height=Math.ceil(BH*q);const g0=raw.getContext('2d');g0.setTransform(q,0,0,q,X0*q,Y0*q);
+    const keep=cx;cx=g0;try{drawMonster0(a[0],fi/(nf-1),false,v)}finally{cx=keep}c=document.createElement('canvas');c.width=raw.width;c.height=raw.height;const g=c.getContext('2d');g.filter=a[1];g.drawImage(raw,0,0);TCACHE.set(key,c);TPIX+=c.width*c.height;
+    if(TPIX>4e7){for(const [kk,cc] of TCACHE){TCACHE.delete(kk);TPIX-=cc.width*cc.height;if(TPIX<2.5e7)break}}}
+  else{TCACHE.delete(key);TCACHE.set(key,c)}
+  cx.drawImage(c,-240,-380,480,410)}
 function drawMonster0(id,k,fl,v){if(BA(id,k,fl,v))return;
   const c=x=>fl?'#ffffff':x;cx.lineCap='round';cx.lineJoin='round';
   switch(id){
@@ -3143,7 +3225,7 @@ function win(){
   save();hud();renderActions();
 }
 function endBattle(){
-  const lost=B.lost,lv=B.leveled,op=B.opts,fled=B.fled;B=null;scene='explore';$('#battleUI').hidden=true;$('#controls').style.display='';
+  const lost=B.lost,lv=B.leveled,op=B.opts,fled=B.fled,mob=op&&op.mob;B=null;if(mob)mobAfter(mob,lost,fled);else MOBGRACE=T+2;scene='explore';$('#battleUI').hidden=true;$('#controls').style.display='';
   if(op){if(lost&&op.onLose){op.onLose();return}if(!lost&&!fled&&op.onWin){save();hud();op.onWin();return}}
   if(lost){fade(()=>{S.gold=Math.floor(S.gold/2);S.hp=maxHP();S.mp=maxMP();wakeAt(6,S.min>=360);S.checkedIn=false;S.map='inn';placePlayer(15,3,'up');save();hud()},()=>toast('You wake at the Sleeping Stag. Half your gold is gone.'));return}
   save();hud();if(lv)setTimeout(openStats,150);
@@ -3256,7 +3338,7 @@ let last=performance.now();
 function frame(now){cx=MAIN;cx.setTransform(RS,0,0,RS,0,0);cx.imageSmoothingEnabled=true;
   const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;
   if(scene==='explore'){
-    tickClock(dt);updateNPCs(dt);if(!modalOpen())updateAgents(dt);
+    tickClock(dt);updateNPCs(dt);updateMobs(dt);if(!modalOpen())updateAgents(dt);
     if(P.swing>0)P.swing-=dt;if(P.cd>0)P.cd-=dt;
     if(P.moving){P.t+=dt/.17;if(P.t>=1){const extra=P.t-1;P.t=1;P.moving=false;arrive();
       if(!P.moving&&canMove()&&held.length){tryMove(held[held.length-1]);if(P.moving)P.t=Math.min(extra,.9)}}}
