@@ -973,6 +973,22 @@ function drawMinimap(){cx.imageSmoothingEnabled=false;const big=MMODE===2;
     for(const b of BOSSES)if(!S.bossDown.includes(b.id)){cx.font='700 13px "Alegreya SC", Georgia, serif';cx.strokeText(b.n,x0+b.x*sc,y0+b.y*sc-10);cx.fillStyle='#ff8a70';cx.fillText(b.n,x0+b.x*sc,y0+b.y*sc-10)}
     cx.font='700 14px "Alegreya SC", Georgia, serif';cx.fillStyle='#efe3c4';cx.fillText('Gold ! = new quest   Green ? = ready to hand in   Red = boss   Press M to close',W/2,y0+h+20);cx.textAlign='left'}
   const pl=Math.sin(T*6)>0;cx.fillStyle=pl?'#ffffff':'#ff3b3b';const pr=big?5:3;cx.fillRect(x0+P.x*sc-pr,y0+P.y*sc-pr,pr*2,pr*2)}
+let FLOCK=null,flockWait=6;
+function ambient(m,x0,x1,y0,y1,night,dt,camX,camY){
+  const zz=ZONE[P.y]?ZONE[P.y][P.x]:0;
+  if(!night&&(zz===0||zz===1)){for(let gy=Math.floor(y0/8);gy<=Math.ceil(y1/8);gy++)for(let gx=Math.floor(x0/8);gx<=Math.ceil(x1/8);gx++){if(hash(gx,gy,71)>.22)continue;
+    const cxw=gx*8*TS+128,cyw=gy*8*TS+128,h=hash(gx,gy,72)*20,bx=cxw+Math.sin(T*.5+h)*70+Math.sin(T*1.6+h)*14,by=cyw+Math.cos(T*.7+h)*40-Math.abs(Math.sin(T*3+h))*8,f=Math.abs(Math.sin(T*14+h));
+    cx.fillStyle=['#fff6d8','#f3c24a','#e8873a','#b9d8ff'][Math.floor(hash(gx,gy,73)*4)];cx.fillRect(bx-1-3*f,by-2,3*f+1,3);cx.fillRect(bx+1,by-2,3*f+1,3);cx.fillStyle='#2a2018';cx.fillRect(bx,by-2,1,4)}}
+  const sky=!night&&zz!==2&&zz!==5;
+  if(!FLOCK){flockWait-=dt;if(flockWait<=0&&sky){const a=Math.random()*Math.PI*2,sp=70+Math.random()*30;
+      FLOCK={x:camX+W/2-Math.cos(a)*(W*.75),y:camY+H/2-Math.sin(a)*(H*.75),vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,n:3+Math.floor(Math.random()*2),t:0}}}
+  else{const F=FLOCK;F.t+=dt;F.x+=F.vx*dt;F.y+=F.vy*dt;
+    const ang=Math.atan2(F.vy,F.vx),px=-Math.sin(ang),py=Math.cos(ang),ux=Math.cos(ang),uy=Math.sin(ang);
+    for(let i=0;i<F.n;i++){const k=i-(F.n-1)/2,back=Math.abs(k)*16,bx=F.x+px*k*14-ux*back,by=F.y+py*k*14-uy*back,f=Math.sin(T*10+i)*3;
+      cx.fillStyle='rgba(0,0,0,.14)';cx.beginPath();cx.moveTo(bx+34,by+86);cx.lineTo(bx+40,by+89);cx.lineTo(bx+46,by+86);cx.lineTo(bx+40,by+91);cx.fill();
+      cx.strokeStyle='#2a2420';cx.lineWidth=2;cx.beginPath();cx.moveTo(bx-6,by+f);cx.lineTo(bx,by+2);cx.lineTo(bx+6,by+f);cx.stroke()}
+    if(F.t>4&&(F.x<camX-300||F.x>camX+W+300||F.y<camY-300||F.y>camY+H+300)){FLOCK=null;flockWait=18+Math.random()*16}}
+}
 function renderExplore(dt){
   const m=S.map,M=MAPS[m],night=S.time==='night',mw=M.w*TS,mh=M.h*TS;
   const k=P.moving?P.t:1,px=(P.fx+(P.x-P.fx)*k)*TS,py=(P.fy+(P.y-P.fy)*k)*TS;
@@ -1002,6 +1018,7 @@ function renderExplore(dt){
       cx.font='700 13px "Alegreya SC", Georgia, serif';cx.textAlign='center';cx.lineWidth=3;cx.strokeStyle='#20160f';const ty=by-b.scale*230;cx.strokeText(b.n,bx,ty);cx.fillStyle='#ff8a70';cx.fillText(b.n,bx,ty);cx.textAlign='left'}
     if(y===prow)drawPerson(px,py,PEOPLE.player,P.dir,walk);
   }
+  if(m==='world')ambient(m,x0,x1,y0,y1,night,dt||0,camX,camY);
   cx.restore();
   const zz=m==='world'?ZONE[P.y][P.x]:-1,inF=zz===2;
   const ZD={2:[.66,.8,[4,12,18],'160,180,190'],3:[.22,.68,[16,28,18],'150,190,150'],5:[.18,.72,[28,10,40],'170,150,200']}[zz];
@@ -1308,7 +1325,7 @@ function renderBattleInner(dt){
   cx.restore();
   if(!B.dying){cx.fillStyle='rgba(42,29,20,.92)';cx.fillRect(176,12,288,54);cx.strokeStyle='#8a6a3e';cx.lineWidth=2;cx.strokeRect(177,13,286,52);
     cx.font='700 17px "Alegreya SC", Georgia, serif';cx.fillStyle='#efe3c4';cx.fillText(`Lv ${m.lv} ${m.n}`,190,35);
-    if(m.boss){cx.fillStyle='#ff8a70';cx.font='700 12px "Alegreya SC", Georgia, serif';cx.textAlign='right';cx.fillText(m.undead?'BOSS · UNDEAD':'BOSS',450,34);cx.textAlign='left'}
+    if(m.boss){cx.font='700 13px "Alegreya SC", Georgia, serif';cx.textAlign='center';cx.lineWidth=4;cx.strokeStyle='#120c08';const tg=m.undead?'BOSS · UNDEAD':'BOSS';cx.strokeText(tg,320,84);cx.fillStyle='#ff8a70';cx.fillText(tg,320,84);cx.textAlign='left'}
     else if(m.undead){cx.fillStyle='#c9b8ff';cx.font='700 12px "Alegreya SC", Georgia, serif';cx.textAlign='right';cx.fillText('UNDEAD',450,34);cx.textAlign='left'}
     cx.fillStyle='#120c08';cx.fillRect(190,45,260,10);cx.fillStyle='#b8402f';cx.fillRect(190,45,260*m.hp/m.maxhp,10)}
   if(B.pflash>0){cx.fillStyle=`rgba(200,30,30,${B.pflash*.6})`;cx.fillRect(0,0,W,H)}
