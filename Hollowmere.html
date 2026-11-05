@@ -1776,7 +1776,7 @@ const icon=k=>`<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke
 const SLOTI={head:'helm',body:'leather',feet:'boots',main:'sword',off:'shield',trk:'trinket'};
 const SLOTN={head:'Head',body:'Body',feet:'Feet',main:'Main hand',off:'Off hand',trk:'Trinket'};
 const trkR=i=>i===15?5:i>=13?3:i>=9?2:1;
-function playerLook(){const o={...PEOPLE.player},m=EQ('main'),bd=EQ('body');o.sword=!!(m&&!GB[m.b].bow&&!GB[m.b].spm);o.bow=!!(m&&GB[m.b].bow);
+function playerLook(){const o={...PEOPLE.player},m=EQ('main'),bd=EQ('body'),of=EQ('off');o.sword=0;o.bow=0;o.held={main:m?{b:m.b,r:m.r}:null,off:of?{b:of.b,r:of.r}:null};
   if(EQ('head'))o.hat='helm';if(bd&&bd.b==='robe')o.robe=1;return o}
 let DOLL={k:'',url:''};
 function dollImg(){const o=playerLook(),k=JSON.stringify(o);if(DOLL.k===k)return DOLL.url;const sc=4,c=document.createElement('canvas');c.width=40*sc;c.height=60*sc;
@@ -1882,12 +1882,18 @@ function spawnCell(m,ci,cj,visible){const key=m+':'+ci+','+cj;const st=CELLS.get
   if(road.length>=4&&M.outdoor&&Math.hypot(x0-OX-22,y0-OY-16)>26&&Math.hypot(x0-CX-31,y0-CY-24)>30&&Math.random()<.07)groups.push([...pick(road),1]);
   CELLS.set(key,{live:0,until:0});
   for(const g of groups){const [x,y,zn,isRoad]=g;if(Math.abs(x-P.x)+Math.abs(y-P.y)<7)continue;
-    const mb={id:++MID,map:m,cell:key,x,y,fx:x,fy:y,t:1,moving:false,dir:Math.random()<.5?'left':'right',home:[x,y],zone:M.outdoor?ZONE[y][x]:0,zn,wait:Math.random()*3,step:0};
-    if(isRoad){mb.mons=banditGroup(zn);mb.person=1;mb.guard=1;mb.aggro=1}
-    else{const a=rollMon(zn);mb.mons=[a];if(Math.random()<(S.lv>=4?.22:.08)){const b2=rollMon(zn);mb.mons.push(b2)}mb.aggro=AGGRO.has(a.id);mb.guard=Math.random()<.3}
-    if(!mobFree(mb,x,y))continue;MOBS.push(mb);CELLS.get(key).live++}}
+    let mons;if(isRoad)mons=banditGroup(zn);else{mons=[rollMon(zn)];if(Math.random()<(S.lv>=4?.22:.08))mons.push(rollMon(zn))}
+    const grp={id:++MID},guard=isRoad?1:Math.random()<.3,taken=[];
+    const mk=(q,tx,ty)=>({id:++MID,grp,map:m,cell:key,x:tx,y:ty,fx:tx,fy:ty,t:1,moving:false,dir:Math.random()<.5?'left':'right',home:[tx,ty],zone:M.outdoor?ZONE[ty][tx]:0,zn,wait:Math.random()*3,step:0,
+      mons:[q],person:isRoad?1:0,guard,aggro:isRoad?1:AGGRO.has(q.id)});
+    for(let i=0;i<mons.length;i++){let spot=null;
+      if(i===0)spot=[x,y];else{const near=[];for(let r=1;r<=2&&!near.length;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const tx=x+dx,ty=y+dy;if(taken.some(t=>t[0]===tx&&t[1]===ty))continue;
+          const probe=mk(mons[i],tx,ty);probe.zone=M.outdoor?ZONE[y][x]:0;if(mobFree(probe,tx,ty)&&(isRoad?(dy===0||'=~B'.includes(tileAt(m,tx,ty))):!!mobEligible(m,tx,ty)))near.push([tx,ty,isRoad&&dy===0?0:1])}
+        near.sort((a,b2)=>a[2]-b2[2]);spot=near[0]}
+      if(!spot)continue;const mb=mk(mons[i],spot[0],spot[1]);mb.zone=M.outdoor?ZONE[y][x]:0;if(!mobFree(mb,spot[0],spot[1]))continue;taken.push(spot);MOBS.push(mb);CELLS.get(key).live++}}}
 function mobStep(mb,nx,ny,spd){mb.dir=nx>mb.x?'right':nx<mb.x?'left':mb.dir;mb.fx=mb.x;mb.fy=mb.y;mb.x=nx;mb.y=ny;mb.t=0;mb.moving=true;mb.spd=spd;mb.step++}
-function engage(mb){if(scene!=='explore'||B)return;held.length=0;mb.engaged=1;const mons=mb.mons.map(q=>({...q}));startBattle(mb.zn,null,{mons,mob:mb});if(B)B.mob=mb}
+function engage(mb){if(scene!=='explore'||B)return;held.length=0;const team=MOBS.filter(q=>q.grp===mb.grp&&Math.abs(q.x-mb.x)+Math.abs(q.y-mb.y)<=6);if(!team.includes(mb))team.unshift(mb);
+  team.forEach(q=>q.engaged=1);const mons=team.map(q=>({...q.mons[0]}));if(mons.length>1&&!mons[0].person){const xp=mons.reduce((a,q)=>a+q.xp,0),g=mons.reduce((a,q)=>a+q.g,0);mons.forEach(q=>{q.xp=xp;q.g=g})}if(mons.length>1&&mons[0].person)mons.forEach((q,i)=>q.n=q.n.replace(/ \d+$/,'')+' '+(i+1));startBattle(mb.zn,null,{mons,mob:team})}
 function updateMobs(dt){
   if(MOBMAP!==S.map||MOBTIME!==S.time){MOBS=[];for(const [k,v] of CELLS)v.live=0;MOBMAP=S.map;MOBTIME=S.time}
   const M=MAPS[S.map];if(!(M.outdoor||M.enc))return;
@@ -1912,9 +1918,9 @@ function updateMobs(dt){
     const dirs=[[1,0],[-1,0],[0,1],[0,-1]].sort(()=>Math.random()-.5).map(([dx,dy])=>[mb.x+dx,mb.y+dy]).filter(([x,y])=>mobFree(mb,x,y)&&(MAPS[mb.map].outdoor?!!mobEligible(mb.map,x,y)||mb.person:true));
     if(back)dirs.sort((a,b2)=>Math.abs(a[0]-mb.home[0])+Math.abs(a[1]-mb.home[1])-Math.abs(b2[0]-mb.home[0])-Math.abs(b2[1]-mb.home[1]));
     if(dirs.length)mobStep(mb,dirs[0][0],dirs[0][1],.5)}}
-function mobAfter(mb,lost,fled){MOBGRACE=T+2.5;if(lost){MOBS=[];return}
-  if(fled){mb.chase=0;mb.calm=T+6;mb.engaged=0;return}
-  MOBS=MOBS.filter(q=>q!==mb);const c=CELLS.get(mb.cell);if(c){c.live=Math.max(0,c.live-1);c.until=T+150}}
+function mobAfter(team,lost,fled){MOBGRACE=T+2.5;if(lost){MOBS=[];return}
+  if(!Array.isArray(team))team=[team];if(fled){for(const mb of team){mb.chase=0;mb.calm=T+6;mb.engaged=0}return}
+  for(const mb of team){MOBS=MOBS.filter(q=>q!==mb);const c=CELLS.get(mb.cell);if(c){c.live=Math.max(0,c.live-1);c.until=T+150}}}
 function drawMob(mb){const k=mb.moving?mb.t:1,X=(mb.fx+(mb.x-mb.fx)*k)*TS,Y=(mb.fy+(mb.y-mb.fy)*k)*TS,walk=mb.moving?(mb.t<.5?1:-1)*(mb.step%2?1:-1):0;
   const n=mb.mons.length;
   if(mb.person){for(let i=n-1;i>=0;i--){const ox=(i-(n-1)/2)*9,oy=-i%2*3;drawPerson(X+ox,Y+oy,PEOPLE[mb.mons[i].v]||PEOPLE.bandit,mb.dir==='left'?'left':mb.dir==='right'?'right':'down',walk)}}
@@ -2345,8 +2351,27 @@ function drawCat(X,Y){const c=X+16,b=Y+28,t=Math.sin(T*3);cx.fillStyle='rgba(0,0
 function drawBow(c,by,dir){const lf=dir==='left'||dir==='up',ac=lf?c+4:c-4,sx=lf?c-2:c+2;
   cx.strokeStyle='#6b4426';cx.lineWidth=2;cx.beginPath();cx.arc(ac,by-16,13,lf?Math.PI-1.1:-1.1,lf?Math.PI+1.1:1.1);cx.stroke();
   cx.strokeStyle='#d9c9a0';cx.lineWidth=1;cx.beginPath();cx.moveTo(sx,by-28);cx.lineTo(sx,by-4);cx.stroke()}
+const HMET=['#c9d0d8','#8ab8ff','#c9a0ff','#ffc060','#ff6a5a','#ff7ad8'];
+function drawHeld(c,by,dir,it,off){if(!it)return;const b=it.b,mt=HMET[it.r]||HMET[0],wd='#6b4426',gd='#c9952f';
+  const front=dir==='down'||dir==='right'?!off:off,side=dir==='left'?-1:dir==='right'?1:(off?1:-1)*(dir==='up'?-1:1);
+  const hx=dir==='left'||dir==='right'?c+(off?-side*5:side*6):c+side*8,hy=by-10;
+  if(b==='bow'){drawBow(c,by,dir);return}
+  if(b==='shield'){const sx=dir==='left'||dir==='right'?c+(dir==='left'?-8:8):hx,w=dir==='left'||dir==='right'?4:8;cx.fillStyle='#3a2616';cx.beginPath();cx.moveTo(sx-w,hy-8);cx.lineTo(sx+w,hy-8);cx.lineTo(sx+w,hy+1);cx.lineTo(sx,hy+6);cx.lineTo(sx-w,hy+1);cx.closePath();cx.fill();
+    cx.fillStyle=mt;cx.beginPath();cx.moveTo(sx-w+1,hy-7);cx.lineTo(sx+w-1,hy-7);cx.lineTo(sx+w-1,hy+.5);cx.lineTo(sx,hy+4.6);cx.lineTo(sx-w+1,hy+.5);cx.closePath();cx.fill();cx.fillStyle=gd;cx.fillRect(sx-.8,hy-6,1.6,9);return}
+  const tilt=side*.18;cx.save();cx.translate(hx,hy);cx.rotate(tilt);
+  const blade=(len,w)=>{cx.fillStyle=mt;cx.fillRect(-w/2,-len-2,w,len);cx.beginPath();cx.moveTo(-w/2,-len-2);cx.lineTo(0,-len-4-w*.6);cx.lineTo(w/2,-len-2);cx.fill();cx.fillStyle='rgba(255,255,255,.45)';cx.fillRect(-w/2,-len-2,w/2.5,len)};
+  if(b==='sword'){blade(11,2);cx.fillStyle=gd;cx.fillRect(-3,-3,6,1.6);cx.fillStyle=wd;cx.fillRect(-.8,-1.5,1.6,3.5)}
+  else if(b==='dagger'){blade(6,2);cx.fillStyle=gd;cx.fillRect(-2.5,-3,5,1.4);cx.fillStyle=wd;cx.fillRect(-.8,-1.5,1.6,3)}
+  else if(b==='great'){blade(19,3);cx.fillStyle=gd;cx.fillRect(-4.5,-3,9,2);cx.fillStyle=wd;cx.fillRect(-1,-1,2,5)}
+  else if(b==='axe'){cx.fillStyle=wd;cx.fillRect(-.9,-14,1.8,17);cx.fillStyle=mt;cx.beginPath();cx.moveTo(side>0?0:0,-14);cx.lineTo(side*6,-16);cx.lineTo(side*7,-9);cx.lineTo(0,-10);cx.closePath();cx.fill()}
+  else if(b==='mace'){cx.fillStyle=wd;cx.fillRect(-.9,-11,1.8,14);cx.fillStyle=mt;cx.beginPath();cx.arc(0,-12,3.2,0,7);cx.fill();cx.fillRect(-.6,-17,1.2,3);cx.fillRect(-5,-12.6,10,1.2)}
+  else if(b==='hammer'){cx.fillStyle=wd;cx.fillRect(-.9,-17,1.8,21);cx.fillStyle=mt;cx.fillRect(-5,-21,10,6);cx.fillStyle='rgba(0,0,0,.25)';cx.fillRect(-5,-17,10,2)}
+  else if(b==='spear'){cx.fillStyle=wd;cx.fillRect(-.8,-34,1.6,42);cx.fillStyle=mt;cx.beginPath();cx.moveTo(-2.5,-34);cx.lineTo(0,-42);cx.lineTo(2.5,-34);cx.closePath();cx.fill()}
+  else if(b==='staff'){cx.fillStyle=wd;cx.fillRect(-1,-30,2,38);cx.fillStyle=mt;cx.beginPath();cx.arc(0,-32,3.4,0,7);cx.fill();cx.fillStyle='rgba(255,255,255,.7)';cx.fillRect(-1.5,-34,1.5,1.5)}
+  cx.restore()}
 function drawPerson(X,Y,o,dir='down',walk=0){if(o.child){cx.save();cx.translate(X+16,Y+30);cx.scale(.78,.78);cx.translate(-X-16,-Y-30);drawPerson(X,Y,{...o,child:0},dir,walk);cx.restore();return}
   const c=X+16,by=Y+30;cx.fillStyle='rgba(0,0,0,.25)';ell(c,by,9,3);if(o.bow&&dir==='up')drawBow(c,by,dir);
+  if(o.held){const H=o.held;const sh=H.off&&H.off.b==='shield',back=dir==='up'?[H.main,H.off]:(dir==='left'||dir==='right')&&!sh?[H.off]:[];for(const it of back)if(it)drawHeld(c,by,dir,it,it===H.off)}
   if(o.cloak){cx.fillStyle=o.cloak;if(dir==='up')cx.fillRect(c-8,by-21,16,16);else if(dir!=='down')cx.fillRect(dir==='left'?c+2:c-8,by-21,6,15);else{cx.fillRect(c-9,by-20,2,12);cx.fillRect(c+7,by-20,2,12)}}
   if(o.robe){cx.fillStyle=o.top;cx.beginPath();cx.moveTo(c-7,by-20);cx.lineTo(c+7,by-20);cx.lineTo(c+9,by);cx.lineTo(c-9,by);cx.closePath();cx.fill();
     if(o.stole&&dir!=='up'){cx.fillStyle=o.stole;cx.fillRect(c-4,by-20,3,18);cx.fillRect(c+1,by-20,3,18)}if(o.shawl){cx.fillStyle=o.shawl;cx.fillRect(c-8,by-20,16,6)}}
@@ -2367,6 +2392,7 @@ function drawPerson(X,Y,o,dir='down',walk=0){if(o.child){cx.save();cx.translate(
   if(o.hat==='hood'){cx.fillStyle=o.hatc;cx.beginPath();cx.arc(c,by-27,9,Math.PI,0);cx.fill();cx.fillRect(c-9,by-27,3,9);cx.fillRect(c+6,by-27,3,9)}
   if(o.bow&&dir!=='up')drawBow(c,by,dir)
   if(o.spear){seg([c+11,by-2,c+11,by-46],2,'#6b4426');cx.fillStyle='#b9c2cc';tri(c+8,by-46,c+14,by-46,c+11,by-55)}
+  if(o.held){const H=o.held;const sh=H.off&&H.off.b==='shield',fr=dir==='up'?[]:dir==='down'?[H.main,H.off]:sh?[H.off,H.main]:[H.main];for(const it of fr)if(it)drawHeld(c,by,dir,it,it===H.off)}
   if(o.sword){cx.fillStyle='#b9c2cc';if(dir==='left')cx.fillRect(c+6,by-16,2,11);else cx.fillRect(c-8,by-16,2,11);cx.fillStyle='#c9952f';if(dir==='left')cx.fillRect(c+5,by-17,4,2);else cx.fillRect(c-9,by-17,4,2)}
 }
 
