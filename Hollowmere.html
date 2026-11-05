@@ -221,13 +221,21 @@ function vnoise(x,y,sc,k=99){const gx=x/sc,gy=y/sc,ix=Math.floor(gx),iy=Math.flo
   const a=hash(ix,iy,k),b=hash(ix+1,iy,k),c=hash(ix,iy+1,k),d=hash(ix+1,iy+1,k),u=sm(fx),v=sm(fy);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
 const ZONE=[];
 const SIGNS={};
+const SITES=[{id:'roost',n:"Dragon's Roost",x:288,y:24,r:11,dec:['R',.05],g:'.'},{id:'tomb',n:'Tomb of Malgorath',x:20,y:16,r:10,dec:['J',.07],g:'d'},{id:'sanctum',n:'Sunken Sanctum',x:24,y:162,r:10,dec:['c',.04],g:'M'}];
+const RELIQ=[{x:288,y:19,il:24},{x:20,y:11,il:18},{x:24,y:157,il:21},{x:60,y:6,il:15},{x:306,y:10,il:20},{x:8,y:95,il:14},{x:300,y:172,il:19},{x:160,y:174,il:17}];
 const BOSSES=[
   {id:'greyfang',x:30,y:50,mon:'wolf',n:'Greyfang the Alpha',lv:7,hp:150,atk:21,def:7,agi:12,xp:220,g:150,drop:'fang',zone:'forest',scale:.34,bscale:1.45,
     line:'A huge grey wolf rises from among the standing stones. Its scarred muzzle curls into a snarl.'},
   {id:'colossus',x:215,y:165,mon:'colossus',n:'Stone Colossus',lv:10,hp:280,atk:27,def:18,agi:3,xp:420,g:320,drop:'heart',zone:'crags',scale:.32,bscale:1.2,
     line:'The boulders shift. A mountain of living stone stands up and fixes you with glowing eyes.'},
   {id:'hollowking',x:150,y:36,mon:'knight',n:'The Hollow King',lv:12,hp:340,atk:31,def:14,agi:8,undead:1,xp:650,g:520,drop:'crown',zone:'ruins',scale:.3,bscale:1.3,
-    line:'A crowned knight sits on a broken throne. "Who disturbs the rest of Varn?" His voice echoes from an empty helm.'}];
+    line:'A crowned knight sits on a broken throne. "Who disturbs the rest of Varn?" His voice echoes from an empty helm.'},
+  {id:'lich',x:20,y:16,mon:'lich',n:'Malgorath the Lich',lv:18,hp:1100,atk:70,def:22,agi:12,undead:1,xp:2600,g:1500,drop:'lichdust',zone:'ruins',scale:.27,bscale:.92,
+    line:'Green fire kindles in a crowned skull. "A thousand years I have waited for a worthy soul to devour. You will do."'},
+  {id:'sentinel',x:24,y:162,mon:'sentinel',n:'The Drowned Sentinel',lv:21,hp:1500,atk:82,def:34,agi:6,xp:3600,g:2000,drop:'starshard',zone:'ruins',scale:.24,bscale:.82,
+    line:'Water pours from the seams of a bronze giant as it rises from the sanctum floor. Its single eye opens. INTRUDER.'},
+  {id:'vyrm',x:288,y:24,mon:'dragon',n:'Vyrmathrax the Ashen',lv:25,hp:2200,atk:96,def:30,agi:12,xp:5200,g:3000,drop:'drakescale',zone:'crags',scale:.22,bscale:.82,
+    line:'The ashes stir. An ancient dragon uncoils from its hoard, smoke curling from its jaws. "Another thief. How tiresome."'}];
 const CBUILD=[
   {x:22,y:2,w:18,h:11,kind:'keep',door:30,to:{map:'keep',x:12,y:14}},
   {x:43,y:6,w:12,h:8,kind:'cathedral',roof:'slate',door:48,to:{map:'cathedral',x:11,y:16}},
@@ -412,6 +420,18 @@ function makeWorld(){
   for(let y=110;y<=116;y++)for(let x=104;x<=114;x++){G[y][x]='.';O[y][x]=(y===110||y===116||x===104||x===114)&&!(x===114&&y===113)?'F':' '}
   [[106,112],[109,114],[111,111],[107,115],[112,113]].forEach(([x,y])=>O[y][x]='e');
   O[87][165]='A';G[87][165]='.';O[87][172]='b';G[87][172]='.';
+  // ancient sites
+  for(const st of SITES){for(let y=st.y-st.r-3;y<=st.y+st.r+3;y++)for(let x=st.x-st.r-3;x<=st.x+st.r+3;x++){if(x<2||y<2||x>=WW-2||y>=WH-2)continue;
+      const d=Math.hypot(x-st.x,(y-st.y)*1.15)+(vnoise(x,y,3,71)-.5)*1.6;if(d>st.r+2)continue;ZONE[y][x]=7;O[y][x]=' ';
+      G[y][x]=d<st.r-1||hash(x,y,72)<.5?'u':st.g;const gate=Math.abs(x-st.x)<=1||Math.abs(y-st.y)<=1;
+      if(d>st.r-.7&&d<=st.r+.5){if(!gate&&hash(x,y,73)>.18)O[y][x]='X'}
+      else if(d<st.r-2&&d>3&&(x-st.x)%4===0&&(y-st.y)%4===0)O[y][x]='p';
+      else if(d<st.r-1.5&&d>3&&!gate&&hash(x,y,74)<st.dec[1])O[y][x]=st.dec[0]}
+    for(let k=1;k<=st.r+6;k++)for(const [dx,dy] of [[0,1],[0,-1],[1,0],[-1,0]])for(const w of [-1,0,1]){const x=st.x+dx*k+(dy?w:0),y=st.y+dy*k+(dx?w:0);if(x<2||y<2||x>=WW-2||y>=WH-2)continue;
+      O[y][x]=' ';if(G[y][x]==='o'||G[y][x]==='w')G[y][x]='B'}
+    clear(st.x,st.y,2,'u')}
+  for(const R of RELIQ){clear(R.x,R.y,2);for(let y=R.y-1;y<=R.y+1;y++)for(let x=R.x-1;x<=R.x+1;x++){if(G[y][x]==='o'||G[y][x]==='w')G[y][x]='u';else if(ZONE[y][x]!==7)G[y][x]='u'}
+    O[R.y][R.x]='H';for(const [dx,dy] of [[-2,-2],[2,-2],[-2,2],[2,2]])if(G[R.y+dy][R.x+dx]!=='w')O[R.y+dy][R.x+dx]='p'}
   for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){G[OY+y][OX+x]=town.ground[y][x];O[OY+y][OX+x]=town.obj[y][x];ZONE[OY+y][OX+x]=1}
   const sign=(x,y,title,text)=>{O[y][x]='P';const z=ZONE[y][x];G[y][x]=z===2?'d':z===4?'g':z===5?'u':'.';SIGNS[x+','+y]=[title,text]};
   sign(OX+39,OY+14,'Notice Board','Four roads leave Hollowmere. North for the Ruins of Varn, east for Mirror Lake, south for the farms and the Ashen Crags, and west for the Hunter\'s Camp, the Darkwood and Murkfen Marsh. By order of the Reeve: carry a blade, a tonic, and a friend.');
@@ -525,11 +545,140 @@ function isSolid(x,y){const M=MAPS[S.map];if(x<0||y<0||x>=M.w||y>=M.h)return tru
 /* =================== DATA =================== */
 const WEAPONS=[{n:'Rusty Dagger',a:0,c:0},{n:'Bronze Shortsword',a:4,c:60},{n:'Iron Longsword',a:9,c:180},{n:'Steel Broadsword',a:16,c:450},{n:'Moonsteel Blade',a:26,c:1000},{n:'Runed Greatsword',a:38,c:1900}];
 const ARMORS=[{n:'Padded Tunic',d:0,c:0},{n:'Leather Jerkin',d:3,c:50},{n:'Chain Hauberk',d:7,c:160},{n:'Plate Harness',d:12,c:420},{n:"Warden's Plate",d:19,c:950},{n:'Dragonscale Mail',d:27,c:1800}];
-const SUP={potion:{n:'Healing Draught',d:'Restores 40 HP',c:15},hipotion:{n:'Greater Draught',d:'Restores 90 HP',c:40},ether:{n:'Mana Tonic',d:'Restores 20 MP',c:25},
+const SUP={arrow:{n:'Arrows ×20',d:'Ammunition for bows',c:12},roast:{n:'Roast Meat',d:'Restores 30 HP',c:8},stew:{n:'Hearty Stew',d:'Restores 70 HP and 15 MP',c:30},potion:{n:'Healing Draught',d:'Restores 40 HP',c:15},hipotion:{n:'Greater Draught',d:'Restores 90 HP',c:40},ether:{n:'Mana Tonic',d:'Restores 20 MP',c:25},
   elixir:{n:'Elixir',d:'Restores 45 MP',c:60},flask:{n:'Fire Flask',d:'Throw in battle for 45 fire damage',c:35},smoke:{n:'Smoke Pouch',d:'Escape any normal battle',c:20}};
 const TRINKETS=[{n:'None'},{n:'Copper Band',st:{def:2},d:'+2 Defense'},{n:'Tusk Necklace',st:{str:2},d:'+2 Strength'},{n:'Feather Charm',st:{agi:3},d:'+3 Agility'},
-  {n:'Glimmer Amulet',st:{int:4},d:'+4 Intellect'},{n:'Bonewarden Ring',st:{vit:4,def:2},d:'+4 Vitality, +2 Defense'},{n:"Rat King's Signet",st:{str:3,agi:2},d:'+3 Strength, +2 Agility'},{n:'Stonehide Band',st:{def:3,vit:2},d:'+3 Defense, +2 Vitality'},{n:'Oakheart Charm',st:{vit:3,str:1},d:'+3 Vitality, +1 Strength'}];
+  {n:'Glimmer Amulet',st:{int:4},d:'+4 Intellect'},{n:'Bonewarden Ring',st:{vit:4,def:2},d:'+4 Vitality, +2 Defense'},{n:"Rat King's Signet",st:{str:3,agi:2},d:'+3 Strength, +2 Agility'},{n:'Stonehide Band',st:{def:3,vit:2},d:'+3 Defense, +2 Vitality'},{n:'Oakheart Charm',st:{vit:3,str:1},d:'+3 Vitality, +1 Strength'},
+  {n:'Amethyst Ring',st:{int:5},d:'+5 Intellect'},{n:'Ruby Pendant',st:{str:5},d:'+5 Strength'},{n:'Sapphire Ring',st:{def:4,vit:3},d:'+4 Defense, +3 Vitality'},{n:'Emerald Charm',st:{agi:6},d:'+6 Agility'},{n:'Diamond Circlet',st:{str:4,def:4,vit:4,agi:4,int:4},d:'+4 to every stat'},{n:'Relic Amulet',st:{vit:8,int:4},d:'+8 Vitality, +4 Intellect'}];
+/* =================== GEAR =================== */
+const RAR=[{n:'Common',m:1,c:'#4a4033',b:'#e8e0cc',st:0,v:1},{n:'Rare',m:1.25,c:'#1d5cb4',b:'#7ab8ff',st:1,v:2.5},{n:'Epic',m:1.55,c:'#7a2db0',b:'#c995ff',st:2,v:6},
+  {n:'Legendary',m:1.95,c:'#b05000',b:'#ffa640',st:3,v:15},{n:'Artifact',m:2.5,c:'#b0101e',b:'#ff6a5a',st:4,v:40}];
+const GB={
+  sword:{t:'Sword',hand:1,m:1,ns:['Shortsword','Arming Sword','Longsword','Bastard Sword','Knightblade','Runeblade']},
+  dagger:{t:'Dagger',hand:1,m:.78,pref:'agi',ns:['Knife','Dagger','Dirk','Stiletto','Kris','Shadowfang']},
+  axe:{t:'Axe',hand:1,m:1.1,pref:'str',ns:['Hatchet','Hand Axe','Battle Axe','Bearded Axe','Reaver','Skullcleaver']},
+  mace:{t:'Mace',hand:1,m:1.05,pref:'vit',ns:['Club','Cudgel','Mace','Flanged Mace','Morning Star','Holy Maul']},
+  spear:{t:'Spear',hand:2,m:1.35,pref:'agi',ns:['Pike','Spear','Partisan','Glaive','Halberd','Dragon Lance']},
+  great:{t:'Greatsword',hand:2,m:1.55,pref:'str',ns:['Claymore','Greatsword','Zweihander','Flamberge','Executioner','Titan Blade']},
+  hammer:{t:'Warhammer',hand:2,m:1.6,pref:'str',ns:['Sledge','Warhammer','Great Maul','Earthbreaker','Doomhammer','Worldsplitter']},
+  bow:{t:'Bow',hand:2,m:1.3,bow:1,pref:'agi',ns:['Shortbow','Hunting Bow','Longbow','Recurve Bow','Warbow','Greatbow']},
+  staff:{t:'Staff',hand:2,m:.7,spm:1,pref:'int',ns:['Walking Staff','Oak Staff','Runed Staff','Arcane Staff','Archmage Staff','Starstaff']},
+  shield:{t:'Shield',slot:'off',dm:.55,pref:'def',ns:['Buckler','Round Shield','Kite Shield','Heater Shield','Tower Shield','Aegis']},
+  leather:{t:'Light Armor',slot:'body',dm:.75,pref:'agi',ns:['Leather Vest','Hide Armor','Studded Leather','Ranger Coat','Shadow Leathers','Nightweave']},
+  chain:{t:'Medium Armor',slot:'body',dm:1,pref:'vit',ns:['Ring Mail','Chain Shirt','Chain Hauberk','Scale Mail','Brigandine','Splint Mail']},
+  plate:{t:'Heavy Armor',slot:'body',dm:1.3,pref:'def',ns:['Iron Cuirass','Half Plate','Plate Harness','Full Plate',"Knight's Plate",'Paladin Plate']},
+  robe:{t:'Robe',slot:'body',dm:.5,pref:'int',ns:['Cloth Robe','Apprentice Robe','Silk Robe','Mage Robe','Sorcerer Robe','Archmage Vestments']}};
+const WTYPES=['sword','dagger','axe','mace','spear','great','hammer','bow','staff'],ATYPES=['shield','leather','chain','plate','robe'],ONEH=['sword','dagger','axe','mace'],TWOH=['spear','great','hammer'];
+const SUFX={str:'of the Bear',agi:'of the Fox',int:'of the Owl',vit:'of the Ox',def:'of the Turtle'};
+const EPADJ=['Vicious','Gleaming','Ancient','Savage','Exalted','Wicked','Stalwart','Mystic','Grim','Radiant','Fell','Storm-forged'];
+const LEGW=['Dawnbreaker','Nightfall','Oathkeeper','Thornwrath','Gloomrend','Stormcaller','Kingslayer','Wintersbite','Soulhowl','Ravenwing','Sunderfall','Grimtide','Lionheart','Wyrmtongue','Ashenmourn','Bloodsong','Embervow','Mourningstar'];
+const LEGA=['Mantle of the Dawn','Ironroot Bulwark','Veil of Ravens','Wardenhide','Starforged Shell','Sable Aegis','Heart of the Mountain',"Gravewalker's Coat",'Lionmane Guard','Moonward','Thornmail of Ysra','Stormhide'];
+const GFX={burn:'Hits burst into flame for +25% fire damage',leech:'Heals you for 15% of damage dealt',twin:'20% chance to strike again',crit:'+10% critical chance',slayer:'+50% damage to undead',
+  quiver:'Conjures its own arrows',spell:'+30% spell damage',thorns:'Returns 25% of damage taken',regen:'Restores 4% max HP each turn',ward:'+8% dodge chance',block:'+12% block chance'};
+const FXPOOL=b=>{const G=GB[b];return G.slot?(b==='shield'?['block','thorns','ward','regen']:['thorns','regen','ward']):G.bow?['quiver','crit','twin','burn']:G.spm?['spell','leech','burn']:['burn','leech','twin','crit','slayer']};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function mkItem(b,r,il,o={}){const G=GB[b],R=RAR[r];il=Math.max(1,Math.round(il));const ti=Math.min(5,Math.floor(il/4));const it={b,r,il};
+  if(G.slot)it.d=Math.max(1,Math.round((1+il*1.6)*G.dm*R.m));else{it.a=Math.max(1,Math.round((3+il*2.6)*G.m*R.m));if(G.spm)it.sp=Math.round((2+il*1.3)*R.m)}
+  let st={};if(o.st)st={...o.st};else{const ks=['str','def','vit','agi','int'];for(let i=0;i<R.st;i++){const k=i===0&&G.pref?G.pref:pick(ks);st[k]=(st[k]||0)+Math.max(1,Math.round((1+il/5)*(.8+r*.2)*rnd(.8,1.2)))}}
+  it.st=st;if(o.fx)it.fx=o.fx;else if(r>=3){const p=FXPOOL(b);it.fx=[pick(p)];if(r===4){const q=p.filter(f=>f!==it.fx[0]);it.fx.push(pick(q))}}
+  const main=Object.keys(st).sort((a,c)=>st[c]-st[a])[0];
+  it.n=o.n||(r===0?G.ns[ti]:r===1?`${G.ns[ti]} ${SUFX[main]}`:r===2?`${pick(EPADJ)} ${G.ns[ti]} ${SUFX[main]}`:pick(G.slot?LEGA:LEGW));
+  it.v=Math.round((8+il*7)*R.v);Object.assign(it,o.set||{});return it}
+function genItem(b,r,il,o){const it=mkItem(b,r,il,o);it.u=S.uid=(S.uid||1)+1;return it}
+const ARTS={
+  varn:['sword',{n:'Oath of Varn',fx:['slayer','leech'],st:{str:6,vit:5,def:3,agi:2}},14],
+  gravecall:['staff',{n:'Gravecall, Staff of Malgorath',fx:['spell','leech'],st:{int:10,vit:5,agi:3,def:3}},20],
+  shroud:['robe',{n:'Shroud of the Sovereign',fx:['regen','ward'],st:{int:7,vit:7,def:4,agi:3}},20],
+  starfall:['bow',{n:'Starfall',fx:['quiver','crit'],st:{agi:9,str:5,vit:4,int:2}},22],
+  whisper:['dagger',{n:'Whisper',fx:['twin','crit'],st:{agi:7,str:4,vit:3,def:2}},22],
+  echo:['dagger',{n:'Echo',fx:['twin','leech'],st:{agi:6,str:5,vit:3,int:2}},22],
+  cinder:['great',{n:'Cinderfang, Tooth of the Wyrm',fx:['burn','crit'],st:{str:12,vit:6,agi:4,def:3}},25],
+  wyrmaegis:['shield',{n:'Wyrmscale Aegis',fx:['block','thorns'],st:{def:10,vit:8,str:3,agi:2}},25]};
+const mkArt=k=>{const [b,o,il]=ARTS[k];return genItem(b,4,il,o)};
+const BLOOT={greyfang:{leg:1},colossus:{leg:1,mats:[['obsidian',3],['iron',4]]},hollowking:{art:['varn'],leg:1},ratking:{leg:1},bonewarden:{leg:1,epic:1},
+  lich:{art:['gravecall','shroud'],epic:2,mats:[['relic',2],['tablet',1]]},sentinel:{art:['starfall','whisper','echo'],epic:2,mats:[['mithril',3],['diamond',1]]},
+  vyrm:{art:['cinder','wyrmaegis'],leg:1,epic:2,mats:[['ruby',2],['gold',4]]}};
+const RT={wilds:[70,25,4.6,.4],forest:[60,29,9,2],marsh:[62,28,8.5,1.5],crags:[55,30,12,3],ruins:[52,31,13,4],sewer:[60,28,10,2],crypt:[50,31,14,5],ancient:[28,36,27,9]};
+function rollR(src){const t=RT[src]||RT.wilds;let r=Math.random()*100;for(let i=0;i<4;i++)if((r-=t[i])<0)return i;return 0}
+const randBase=()=>pick([...WTYPES,...WTYPES.slice(0,4),...ATYPES]);
+function giveItem(it){if(S.inv.length>=80){S.gold+=it.v;return true}S.inv.push(it);return false}
+const iname=(it,dark)=>`<b style="color:${dark?RAR[it.r].b:RAR[it.r].c}">${it.n}</b>`;
+const stTxt=st=>Object.entries(st||{}).map(([k,v])=>`+${v} ${STATN[k]}`).join(', ');
+function idesc(it){const G=GB[it.b];return `${RAR[it.r].n} ${G.t}${G.hand===2?' (two-handed)':''} · item level ${it.il}`+
+  (it.a?` · <b>+${it.a} attack</b>`:'')+(it.sp?` · +${it.sp} spell power`:'')+(it.d?` · <b>+${it.d} defense</b>`:'')+(Object.keys(it.st||{}).length?` · ${stTxt(it.st)}`:'')+
+  (it.fx?it.fx.map(f=>` · <i>${GFX[f]}</i>`).join(''):'')}
+const gi=u=>S.inv.find(i=>i.u===u);
+const EQ=s=>S.eq&&S.eq[s]?gi(S.eq[s])||null:null;
+const SLOTS=['main','off','body'];
+function gb(k){let n=0;if(!S.eq)return 0;for(const s of SLOTS){const it=EQ(s);if(it&&it.st&&it.st[k])n+=it.st[k]}return n}
+function hasFx(f){if(!S.eq)return false;for(const s of SLOTS){const it=EQ(s);if(it&&it.fx&&it.fx.includes(f))return true}return false}
+const isBow=()=>{const w=EQ('main');return !!(w&&GB[w.b].bow)},offW=()=>{const o=EQ('off');return o&&!GB[o.b].slot?o:null};
+function slotOfItem(it){const G=GB[it.b];return G.slot||'main'}
+function equip(u,slot){const it=gi(u);if(!it)return;const G=GB[it.b];slot=slot||slotOfItem(it);
+  if(slot==='off'&&!G.slot&&G.hand!==1)return;
+  for(const s of SLOTS)if(S.eq[s]===u)S.eq[s]=null;S.eq[slot]=u;
+  if(slot==='main'&&G.hand===2)S.eq.off=null;
+  if(slot==='off'){const m=EQ('main');if(m&&GB[m.b].hand===2)S.eq.main=null}
+  S.hp=Math.min(S.hp,maxHP());S.mp=Math.min(S.mp,maxMP())}
+const power=it=>(it.a||0)+(it.d||0)*1.6+(it.sp||0)*.6+Object.values(it.st||{}).reduce((a,b)=>a+b,0)*1.5+(it.fx?it.fx.length*6:0);
+function autoEquip(it){const s=slotOfItem(it),cur=EQ(s);if(!cur||power(it)>power(cur)){equip(it.u,s);return true}return false}
+function initGear(){if(!S.inv){S.inv=[];S.eq={main:null,off:null,body:null};S.uid=S.uid||1;
+    const w=S.wpn|0,a=S.arm|0;
+    const wi=genItem(w===0?'dagger':w===5?'great':'sword',0,1+w*3,{n:WEAPONS[w].n,set:{a:Math.max(2,WEAPONS[w].a)}});S.inv.push(wi);S.eq.main=wi.u;
+    const ai=genItem(a>=3?'plate':a>=2?'chain':'leather',0,1+a*3,{n:ARMORS[a].n,set:{d:Math.max(1,ARMORS[a].d)}});S.inv.push(ai);S.eq.body=ai.u}
+  S.eq=Object.assign({main:null,off:null,body:null},S.eq);S.relics=S.relics||[];
+  S.bag=Object.assign({arrow:0,stew:0,roast:0},S.bag)}
+const GSTOCK={merchant:['sword','dagger','bow','shield','leather'],smith:['axe','mace','spear','great','hammer','shield','chain','plate'],alchemist:['staff','robe'],guildmaster:['bow','spear','leather']};
+function stockTiers(){const T=[1,4,7,10,13,16,19,22].filter(t=>t<=S.lv+2);return T.slice(-2)}
+const GEMS=['amethyst','sapphire','ruby','emerald','amethyst','sapphire','diamond'];
+function xdrop(c,x,y){if(S.map!=='world')return [];const z=ZONE[y][x];
+  if(c==='R')return z===4||z===7?[['iron',.35],['coal',.3],['silver',.16],['gold',.07],['mithril',S.lv>=10?.04:0],['obsidian',.18],[pick(GEMS),.06]]:[['coal',.25],['iron',.12],['amethyst',.02]];
+  if(c==='c')return [[pick(GEMS),.3],['silver',.15]];
+  if(c==='T')return [['herb',.15],['honey',.04]];if(c==='K')return [['mushroom',.25]];if(c==='Y')return [['herb',.25]];if(c==='I')return [['herb',.1]];return []}
+const JUNK={wilds:['coin','herb','dice','ring','meat','hide'],forest:['mushroom','coin','candle','tooth','herb','scroll'],marsh:['pearl','herb','mushroom','idol','coin','key'],
+  crags:['coal','iron','silver','obsidian','amethyst','tooth'],ruins:['coin','chalice','relic','scroll','candle','idol','ring'],sewer:['coin','key','ring','dice','mirror'],
+  crypt:['candle','chalice','relic','coin','ring','scroll'],ancient:['relic','tablet','chalice','gold','sapphire','ruby','emerald','diamond','mithril']};
+function openReliq(x,y){const R=RELIQ.find(r=>r.x===x&&r.y===y),id=x+','+y;if(!R)return;
+  if(S.relics.includes(id)){say('Ancient Reliquary','The stone lid lies cracked open. Whatever slept inside is yours now.');return}
+  const L=Math.max(S.lv+2,R.il);
+  modal(()=>`<h2>Ancient Reliquary</h2><p class="say">A stone chest bound in gold, its runes still glowing after a thousand years. Something inside it hums.</p><p class="sub">Breaking the seal will wake its guardian (about level ${L}). Win, and the treasure is yours.</p>
+    <div class="mfoot"><button class="btn" data-a="close">Leave it</button><button class="btn seal" data-a="open">Break the seal</button></div>`,
+  a=>{if(a!=='open')return;closeModal(true);
+    startBattle('ruins',null,{mon:{id:'cknight',n:'Reliquary Guardian',lv:L,hp:Math.round(90+L*22),atk:Math.round(12+L*3),def:Math.round(6+L*1.3),agi:6,xp:60+L*14,g:40+L*10,noflee:1,undead:1},
+      onWin:()=>{S.relics.push(id);const it=genItem(randBase(),3,Math.max(S.lv,R.il)),g=ri(80,160)+L*8;S.gold+=g;const full=giveItem(it);save();hud();
+        say('Reliquary Opened',`The guardian crumbles to dust. Inside the reliquary lies ${iname(it)}${full?' (your pack was full, so you sold it)':''}, and ${g} g in ancient coin.`,idesc(it))}});return false})}
+function reliq(X,Y,open){cx.fillStyle='rgba(0,0,0,.3)';ell(X+16,Y+29,15,5);cx.fillStyle='#4a4652';cx.fillRect(X+2,Y+13,28,16);cx.fillStyle='#5f5b6a';cx.fillRect(X+2,Y+13,28,3);
+  cx.fillStyle='#c9952f';cx.fillRect(X+2,Y+20,28,2);cx.fillRect(X+14,Y+15,4,12);
+  if(open){cx.fillStyle='#16131a';cx.fillRect(X+3,Y+9,26,5);cx.fillStyle='#4a4652';cx.save();cx.translate(X+4,Y+8);cx.rotate(-.35);cx.fillRect(0,-8,28,7);cx.fillStyle='#c9952f';cx.fillRect(0,-5,28,2);cx.restore()}
+  else{cx.fillStyle='#5f5b6a';rr(X+1,Y+6,30,9,3);cx.fillStyle='#c9952f';cx.fillRect(X+1,Y+10,30,2);tri(X+12,Y+6,X+20,Y+6,X+16,Y+2);
+    cx.fillStyle='#7ff0e0';cx.fillRect(X+6,Y+23,3,3);cx.fillRect(X+23,Y+23,3,3);cx.fillRect(X+7,Y+16,2,2);cx.fillRect(X+23,Y+16,2,2)}}
+
 const RECIPES=[
+  {id:'arw',at:'smith',n:'Arrows ×25',d:'A bundle of fletched arrows for bows.',need:{wood:3,feather:1},cost:0,out:{bag:'arrow',n:25}},
+  {id:'arw2',at:'smith',n:'Arrows ×25 (bat-fletched)',d:'Arrows fletched with bat leather.',need:{wood:3,batleather:1},cost:0,out:{bag:'arrow',n:25}},
+  {id:'g1',at:'smith',n:'Iron Blade',d:'A Rare one-handed sword, axe, mace or dagger (item level 8).',need:{iron:5,coal:3,wood:2},cost:40,out:{gear:ONEH,r:1,il:8}},
+  {id:'g2',at:'smith',n:'Iron Great Weapon',d:'A Rare greatsword, warhammer or spear (item level 8).',need:{iron:8,coal:4,wood:3},cost:60,out:{gear:TWOH,r:1,il:8}},
+  {id:'g3',at:'smith',n:"Hunter's Bow",d:'A Rare bow (item level 8).',need:{wood:8,hide:2,batleather:2},cost:40,out:{gear:['bow'],r:1,il:8}},
+  {id:'g4',at:'smith',n:'Iron Shield',d:'A Rare shield (item level 8).',need:{iron:5,wood:4,hide:2},cost:40,out:{gear:['shield'],r:1,il:8}},
+  {id:'g5',at:'smith',n:'Iron Chainmail',d:'Rare medium armor (item level 8).',need:{iron:8,coal:3},cost:50,out:{gear:['chain'],r:1,il:8}},
+  {id:'g6',at:'smith',n:'Tanned Leathers',d:'Rare light armor (item level 8).',need:{hide:4,batleather:2,ratskin:3},cost:35,out:{gear:['leather'],r:1,il:8}},
+  {id:'g7',at:'smith',n:'Silversteel Weapon',d:'An Epic weapon of a random kind (item level 13).',need:{silver:6,iron:4,coal:4,amethyst:1},cost:150,out:{gear:WTYPES,r:2,il:13}},
+  {id:'g8',at:'smith',n:'Silversteel Armor',d:'An Epic shield or armor of a random kind (item level 13).',need:{silver:6,iron:6,hide:3,sapphire:1},cost:150,out:{gear:ATYPES,r:2,il:13}},
+  {id:'g9',at:'smith',n:'Mithril Weapon',d:'A Legendary weapon of a random kind (item level 18).',need:{mithril:5,silver:4,ruby:1,diamond:1},cost:450,out:{gear:WTYPES,r:3,il:18}},
+  {id:'g10',at:'smith',n:'Mithril Armor',d:'A Legendary shield or armor of a random kind (item level 18).',need:{mithril:6,silver:4,emerald:1,diamond:1},cost:450,out:{gear:ATYPES,r:3,il:18}},
+  {id:'g11',at:'smith',n:'Drakescale Plate',d:'Legendary heavy armor forged from dragon scales (item level 25).',need:{drakescale:4,mithril:4,diamond:2},cost:900,out:{gear:['plate'],r:3,il:25}},
+  {id:'t9',at:'smith',n:'Amethyst Ring',d:'Trinket: +5 Intellect.',need:{amethyst:2,silver:2},cost:40,out:{trinket:9}},
+  {id:'t10',at:'smith',n:'Ruby Pendant',d:'Trinket: +5 Strength.',need:{ruby:1,gold:2},cost:60,out:{trinket:10}},
+  {id:'t11',at:'smith',n:'Sapphire Ring',d:'Trinket: +4 Defense, +3 Vitality.',need:{sapphire:1,silver:2},cost:60,out:{trinket:11}},
+  {id:'t12',at:'smith',n:'Emerald Charm',d:'Trinket: +6 Agility.',need:{emerald:1,gold:2},cost:60,out:{trinket:12}},
+  {id:'t13',at:'smith',n:'Diamond Circlet',d:'Trinket: +4 to every stat.',need:{diamond:2,gold:3,mithril:1},cost:200,out:{trinket:13}},
+  {id:'t14',at:'smith',n:'Relic Amulet',d:'Trinket: +8 Vitality, +4 Intellect.',need:{relic:3,tablet:1},cost:120,out:{trinket:14}},
+  {id:'stw',at:'alch',n:'Hearty Stew ×2',d:'Restores 70 HP and 15 MP each.',need:{meat:2,herb:2},cost:0,out:{bag:'stew',n:2}},
+  {id:'rst',at:'alch',n:'Roast Meat ×2',d:'Restores 30 HP each.',need:{meat:1,coal:1},cost:0,out:{bag:'roast',n:2}},
+  {id:'hny',at:'alch',n:'Honey Draught',d:'A Greater Draught (90 HP).',need:{honey:2,herb:1},cost:0,out:{bag:'hipotion',n:1}},
+  {id:'glw',at:'alch',n:'Glowcap Tonic ×2',d:'Two Mana Tonics.',need:{mushroom:2},cost:0,out:{bag:'ether',n:2}},
+  {id:'egg',at:'alch',n:'Harpy Egg Elixir',d:'An Elixir (45 MP).',need:{egg:1,mushroom:2},cost:5,out:{bag:'elixir',n:1}},
+  {id:'vnm',at:'alch',n:'Venom Flask ×2',d:'Two Fire Flasks.',need:{venom:1,coal:2},cost:5,out:{bag:'flask',n:2}},
   {id:'apl',at:'alch',n:'Healing Draught ×3',d:'Three basic healing draughts.',need:{apple:3},cost:0,out:{bag:'potion',n:3}},
   {id:'t7',at:'smith',n:'Stonehide Band',d:'Trinket: +3 Defense, +2 Vitality.',need:{stone:12,ore:2},cost:25,out:{trinket:7}},
   {id:'t8',at:'smith',n:'Oakheart Charm',d:'Trinket: +3 Vitality, +1 Strength.',need:{wood:15,apple:2},cost:20,out:{trinket:8}},
@@ -547,12 +696,12 @@ const RECIPES=[
 const SKILLSHOP={frost:{n:'Frostbolt',d:'6 MP. Ice damage that ignores armor and may freeze the foe for a turn.',c:350},bolt:{n:'Chain Lightning',d:'10 MP. Massive lightning damage.',c:900}};
 const SKN={smite:'Smite',frost:'Frostbolt',bolt:'Chain Lightning'};
 const VENDORS={
-  merchant:{title:'Marrow the Merchant',short:'Marrow',greet:'"Fine steel and finer potions! Have a look, friend."',supplies:['potion','ether','smoke'],gear:1},
-  hilde:{title:'Hilde the Provisioner',short:'Hilde',greet:'"Fresh supplies for the road! I\'ll take any monster bits off your hands too."',supplies:['potion','hipotion','ether','smoke']},
+  merchant:{title:'Marrow the Merchant',short:'Marrow',greet:'"Fine steel and finer potions! Have a look, friend."',supplies:['potion','ether','smoke','arrow'],gear:1},
+  hilde:{title:'Hilde the Provisioner',short:'Hilde',greet:'"Fresh supplies for the road! I\'ll take any monster bits off your hands too."',supplies:['potion','hipotion','ether','smoke','arrow','roast','stew']},
   smith:{title:'Gunnar the Smith',short:'Gunnar',greet:'"Steel and sweat, friend. Bring me ore and hides and I\'ll forge you something special."',gear:1,craft:'smith'},
   alchemist:{title:'Wren the Alchemist',short:'Wren',greet:'"Mind the cauldron, it bites. Want potions, or shall I brew something from your loot?"',supplies:['potion','hipotion','ether','elixir','flask','smoke'],craft:'alch'},
   librarian:{title:'Magister Oren',short:'Oren',greet:'"Knowledge has a price, young one. These tomes teach spells no blade can match."',skills:['frost','bolt']},
-  guildmaster:{title:'Brandt the Guildmaster',short:'Brandt',greet:'"Welcome to the Adventurers\' Guild. The bounty board pays for proof of the kill."',supplies:['smoke','potion','hipotion']}};
+  guildmaster:{title:'Brandt the Guildmaster',short:'Brandt',greet:'"Welcome to the Adventurers\' Guild. The bounty board pays for proof of the kill."',supplies:['smoke','potion','hipotion','arrow']}};
 const SUPPLIES=[{k:'potion',n:'Healing Draught',d:'Restores 40 HP',c:15},{k:'ether',n:'Mana Tonic',d:'Restores 20 MP',c:25},{k:'smoke',n:'Smoke Pouch',d:'Escape any battle',c:20}];
 const STATS=[['str','Strength','+2 attack per point'],['def','Defense','+1.5 armor per point'],['vit','Vitality','+6 max HP per point'],['agi','Agility','Crit, dodge, and escape chance'],['int','Intellect','+4 max MP, stronger Fire and Heal']];
 const MON=[
@@ -578,16 +727,27 @@ const MON=[
  {id:'cknight',n:'Crypt Knight',hp:44,atk:16,def:9,agi:5,xp:40,g:26,w:2,undead:1}];
 const POOLS={wilds_day:['slime','bee','boar','goblin'],wilds_night:['bat','skeleton','wraith','werewolf'],forest:['bat','skeleton','wraith','werewolf','spider'],
   marsh_day:['toad','mudling','hag'],marsh_night:['toad','mudling','wisp','hag'],crags_day:['kobold','harpy','golem'],crags_night:['kobold','harpy','golem','bat'],
-  ruins_day:['skeleton','ghoul','bat'],ruins_night:['skeleton','ghoul','wraith'],sewer:['rat','sludge','rat','bat'],crypt:['skeleton','cknight','ghoul','wraith']};
-const ZMIN={wilds:1,forest:3,marsh:3,crags:5,ruins:6,sewer:4,crypt:7},ZOFF={wilds:0,forest:1,marsh:1,crags:1,ruins:1,sewer:1,crypt:1};
+  ruins_day:['skeleton','ghoul','bat'],ruins_night:['skeleton','ghoul','wraith'],sewer:['rat','sludge','rat','bat'],crypt:['skeleton','cknight','ghoul','wraith'],ancient:['cknight','ghoul','golem','werewolf','wraith','harpy']};
+const ZMIN={wilds:1,forest:3,marsh:3,crags:5,ruins:6,sewer:4,crypt:7,ancient:14},ZOFF={wilds:0,forest:1,marsh:1,crags:1,ruins:1,sewer:1,crypt:1,ancient:3};
 const LOOT={jelly:{n:'Slime Jelly',v:3},stinger:{n:'Bee Stinger',v:4},tusk:{n:'Boar Tusk',v:6},ham:{n:'Boar Ham',v:5},ear:{n:'Goblin Ear',v:6},wing:{n:'Bat Wing',v:5},
   bone:{n:'Bone Shard',v:7},ecto:{n:'Ectoplasm',v:10},pelt:{n:'Wolf Pelt',v:25},silk:{n:'Spider Silk',v:12},toadleg:{n:'Toad Leg',v:6},clay:{n:'Bog Clay',v:5},
   ember:{n:'Wisp Ember',v:14},hair:{n:"Hag's Hair",v:16},ore:{n:'Copper Ore',v:9},feather:{n:'Harpy Feather',v:11},glimmer:{n:'Glimmer Crystal',v:28},dust:{n:'Grave Dust',v:14},
   wood:{n:'Oak Log',v:3},stone:{n:'Stone',v:2},apple:{n:'Apple',v:3},
   tail:{n:'Rat Tail',v:4},goo:{n:'Sewer Goo',v:6},rust:{n:'Rusted Plate',v:14},ratcrown:{n:'Rat Crown'},wardenskull:{n:"Warden's Skull"},cask:{n:'Goose Gold Cask'},cat:{n:'Whiskers the Cat'},page:{n:'Torn Page'},
-  locket:{n:'Silver Locket'},fang:{n:"Greyfang's Fang"},heart:{n:'Heart of Stone'},crown:{n:'Hollow Crown'}};
+  locket:{n:'Silver Locket'},fang:{n:"Greyfang's Fang"},heart:{n:'Heart of Stone'},crown:{n:'Hollow Crown'},
+  meat:{n:'Raw Meat',v:5},hide:{n:'Boar Hide',v:9},batleather:{n:'Bat Leather',v:8},ratskin:{n:'Rat Skin',v:4},chitin:{n:'Spider Chitin',v:14},venom:{n:'Venom Sac',v:18},toadskin:{n:'Toad Skin',v:7},
+  egg:{n:'Harpy Egg',v:20},honey:{n:'Honeycomb',v:8},herb:{n:'Wild Herb',v:3},mushroom:{n:'Glowcap Mushroom',v:7},
+  coal:{n:'Coal',v:4},iron:{n:'Iron Ore',v:12},silver:{n:'Silver Ore',v:24},gold:{n:'Gold Ore',v:45},mithril:{n:'Mithril Ore',v:80},obsidian:{n:'Obsidian',v:20},
+  amethyst:{n:'Amethyst',v:35},sapphire:{n:'Sapphire',v:60},ruby:{n:'Ruby',v:70},emerald:{n:'Emerald',v:65},diamond:{n:'Diamond',v:140},
+  drakescale:{n:'Drake Scale',v:150},lichdust:{n:'Soul Ash',v:160},starshard:{n:'Star Shard',v:200},
+  goldtooth:{n:'Gold Tooth',v:15,j:1},coin:{n:'Old Coin',v:10,j:1},ring:{n:'Tarnished Ring',v:22,j:1},dice:{n:'Bone Dice',v:6,j:1},candle:{n:'Grave Candle',v:5,j:1},mirror:{n:'Cracked Mirror',v:12,j:1},
+  key:{n:'Rusty Key',v:4,j:1},idol:{n:'Clay Idol',v:28,j:1},chalice:{n:'Silver Chalice',v:55,j:1},scroll:{n:'Moldy Scroll',v:9,j:1},tooth:{n:"Giant's Tooth",v:30,j:1},
+  pearl:{n:'Black Pearl',v:75,j:1},relic:{n:'Ancient Relic',v:120,j:1},tablet:{n:'Rune Tablet',v:90,j:1}};
 const DROPS={slime:[['jelly',.5]],bee:[['stinger',.45]],boar:[['tusk',.4]],goblin:[['ear',.45]],bat:[['wing',.5]],skeleton:[['bone',.5]],wraith:[['ecto',.4]],werewolf:[['pelt',.5]],
   spider:[['silk',.3]],toad:[['toadleg',.5]],mudling:[['clay',.55]],wisp:[['ember',.45]],hag:[['hair',.6]],kobold:[['ore',.5]],harpy:[['feather',.5]],golem:[['glimmer',.4]],ghoul:[['dust',.5]],rat:[['tail',.55]],sludge:[['goo',.55],['jelly',.3]],cknight:[['rust',.45],['bone',.4]]};
+[['boar',[['meat',.45],['hide',.45]]],['werewolf',[['meat',.4]]],['bat',[['batleather',.35]]],['rat',[['ratskin',.4]]],['spider',[['chitin',.35],['venom',.3]]],['toad',[['toadskin',.3]]],
+ ['harpy',[['egg',.15],['meat',.3]]],['bee',[['honey',.3]]],['goblin',[['goldtooth',.2],['coin',.25]]],['kobold',[['iron',.35],['coal',.35]]],['golem',[['obsidian',.3],['iron',.25]]],['skeleton',[['coin',.12]]],
+ ['ghoul',[['ring',.1]]],['hag',[['mushroom',.3]]],['mudling',[['pearl',.05]]],['sludge',[['key',.12]]],['cknight',[['silver',.2]]],['wraith',[['candle',.2]]]].forEach(([k,a])=>DROPS[k]=(DROPS[k]||[]).concat(a));
 const STATN={str:'Strength',def:'Defense',vit:'Vitality',agi:'Agility',int:'Intellect'};
 const QORDER=['ham','silk','undead','locket','fang','heart','king','ratking','warden','bounty','embers','ore','cask','cat','pages'];
 const GIVERN={lord:'Lord Aldric in Aldermoor Keep',bishop:'Bishop Mira in Aldermoor Cathedral',guildmaster:"Brandt at the Adventurers' Guild",alchemist:'Wren at the Bubbling Flask',smith:'Gunnar at Ironhand Forge',barkeep:'Rosa at the Gilded Goose',pip:'Pip, in the house beside the Aldermoor library',librarian:'Magister Oren at the Arcane Library',innkeeper:'Bram at the Sleeping Stag Inn',merchant:"Marrow at the Outfitters",priest:'Sister Elin at the chapel',maud:'Old Maud by the town well',hunter:"Kael at the Hunter's Camp (west road)"};
@@ -670,11 +830,14 @@ const PEOPLE={
 /* =================== STATE =================== */
 const KEY='hollowmere-save-v4', V3='hollowmere-save-v3', V2='hollowmere-save-v2', OLD='hollowmere-save-v1';
 const NEW=()=>({lv:1,xp:0,gold:30,hp:0,mp:0,st:{str:3,def:2,vit:3,agi:2,int:2},pts:0,bag:{potion:2,ether:0,smoke:0},wpn:0,arm:0,time:'day',map:'world',x:OX+7,y:OY+11,dir:'down',min:480,day:0,kills:0,checkedIn:false,searched:[],q:{},qk:{},loot:{},skills:[],bossDown:[],bnt:0,trinkets:[],trk:0,bag2:1,broken:{},ko:[],heat:0,wanted:0});
-const tb=k=>(TRINKETS[S.trk]&&TRINKETS[S.trk].st&&TRINKETS[S.trk].st[k])||0,E=k=>S.st[k]+tb(k);
+const tb=k=>(TRINKETS[S.trk]&&TRINKETS[S.trk].st&&TRINKETS[S.trk].st[k])||0,E=k=>S.st[k]+tb(k)+gb(k);
 const maxHP=()=>20+E('vit')*6+S.lv*4, maxMP=()=>8+E('int')*4;
-const atk=()=>3+E('str')*2+WEAPONS[S.wpn].a, defn=()=>Math.round(1+E('def')*1.5+ARMORS[S.arm].d);
-const crit=()=>Math.min(.4,.04+E('agi')*.015), dodge=()=>Math.min(.3,.02+E('agi')*.012);
-const spell=()=>6+E('int')*3, xpNext=l=>Math.round(18*Math.pow(l,1.6));
+function atk(){const w=EQ('main');return 3+E('str')*2+(w?w.a:0)}
+function offAtk(){const o=offW();return o?Math.round(1+E('str')+o.a*.8):0}
+function defn(){const b=EQ('body'),o=EQ('off');return Math.round(1+E('def')*1.5+(b?b.d:0)+(o&&o.d?o.d:0))}
+const blockCh=()=>{const o=EQ('off');return o&&o.b==='shield'?.12+(hasFx('block')?.12:0):0};
+const crit=()=>{const w=EQ('main'),o=offW();return Math.min(.55,.04+E('agi')*.015+(w&&w.b==='dagger'?.06:0)+(o&&o.b==='dagger'?.04:0)+(hasFx('crit')?.1:0))}, dodge=()=>Math.min(.4,.02+E('agi')*.012+(hasFx('ward')?.08:0));
+const spell=()=>{let sp=0;for(const k of ['main','off']){const it=EQ(k);if(it&&it.sp)sp+=it.sp}return Math.round((6+E('int')*3+sp)*(hasFx('spell')?1.3:1))}, xpNext=l=>Math.round(18*Math.pow(l,1.6));
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.st&&MAPS[s.map])return Object.assign(NEW(),s)}catch(e){}
   try{const s=JSON.parse(localStorage.getItem(V3));if(s&&s.st){const n=Object.assign(NEW(),s);
@@ -685,7 +848,7 @@ function load(){
   return null}
 let fresh=false, S=load(); if(!S){S=NEW();fresh=true}
 if(S.min===undefined){S.min=S.time==='night'?21*60:8*60;S.day=S.day||0}
-S.bag=Object.assign({potion:0,hipotion:0,ether:0,elixir:0,flask:0,smoke:0},S.bag);S.broken=S.broken||{};S.ko=S.ko||[];
+S.bag=Object.assign({potion:0,hipotion:0,ether:0,elixir:0,flask:0,smoke:0},S.bag);initGear();S.broken=S.broken||{};S.ko=S.ko||[];
 if(!S.hp){S.hp=maxHP();S.mp=maxMP()}
 const P={x:S.x,y:S.y,fx:S.x,fy:S.y,t:1,moving:false,dir:S.dir,step:0,enc:0};
 if(isSolid(P.x,P.y)){S.map='world';P.x=P.fx=OX+7;P.y=P.fy=OY+11}
@@ -696,6 +859,7 @@ const held=[];
 
 /* =================== HUD / UI =================== */
 function areaName(){if(S.map!=='world')return MAPS[S.map].name;const z=ZONE[P.y]?ZONE[P.y][P.x]:0;
+  if(z===7){let b=SITES[0],bd=1e9;for(const st of SITES){const d=Math.hypot(P.x-st.x,P.y-st.y);if(d<bd){bd=d;b=st}}return b.n}
   if(z===0){if(P.x>176&&P.y<62)return 'Mirror Lake';if(Math.hypot(P.x-70,P.y-100)<8)return "Hunter's Camp";if(P.x>=102&&P.x<=142&&P.y>=106&&P.y<=118)return 'Hollowmere Farms';return 'Open Fields'}
   return ['Open Fields','Hollowmere','The Darkwood','Murkfen Marsh','Ashen Crags','Ruins of Varn','Aldermoor'][z]}
 function checkArea(){const n=areaName();if(n!==lastArea){const first=!lastArea;lastArea=n;hud();if(!first&&(S.map==='world'||MAPS[S.map].enc))AREA={name:n,t:2.6}}}
@@ -759,23 +923,31 @@ function openVendor(k){const V=VENDORS[k];
   modal(()=>{
     let h=`<h2>${V.title}</h2><p class="say">${V.greet}</p><p class="sub">You have <b class="g">${S.gold} g</b>.</p>`;
     if(V.supplies)h+='<h3>Supplies</h3>'+V.supplies.map(id=>{const it=SUP[id];return itemRow(it.n,`${it.d} · you carry ${S.bag[id]}`,it.c,'buy:'+id,S.gold<it.c)}).join('');
-    if(V.gear){h+=`<h3>Blades</h3>`+WEAPONS.slice(1).map((w,i)=>{const n=i+1,st=n===S.wpn?'Equipped':n<S.wpn?'Outclassed':null;return itemRow(w.n,`+${w.a} attack`,w.c,'wpn:'+n,st||S.gold<w.c,st)}).join('');
-      h+=`<h3>Armor</h3>`+ARMORS.slice(1).map((w,i)=>{const n=i+1,st=n===S.arm?'Equipped':n<S.arm?'Outclassed':null;return itemRow(w.n,`+${w.d} defense`,w.c,'arm:'+n,st||S.gold<w.c,st)}).join('')}
+    if(GSTOCK[k]){h+=`<h3>Weapons &amp; armor</h3><p class="sub">New stock arrives as you grow stronger.</p>`;for(const t of stockTiers())for(const b of GSTOCK[k]){const it=mkItem(b,0,t),c=it.v*5;h+=itemRow(it.n,idesc(it),c,`gbuy:${b}:${t}`,S.gold<c)}}
     if(V.skills)h+='<h3>Spell tomes</h3>'+V.skills.map(id=>{const sk=SKILLSHOP[id],own=S.skills.includes(id);return itemRow(sk.n,sk.d,sk.c,'skill:'+id,own||S.gold<sk.c,own?'Learned':'Learn')}).join('');
     if(V.craft)h+=`<h3>${V.craft==='smith'?'Forge a trinket':'Brew from loot'}</h3>`+RECIPES.filter(r=>r.at===V.craft).map(r=>{
       const locked=r.req&&S.q[r.req]!=='done',have=Object.entries(r.need).every(([i,n])=>(S.loot[i]||0)>=n),owned=r.out.trinket&&S.trinkets.includes(r.out.trinket);
       const parts=Object.entries(r.need).map(([i,n])=>`${n} ${LOOT[i].n} (have ${S.loot[i]||0})`).join(', ');
       return itemRow(r.n,locked?`Complete ${V.short}'s quest to learn this recipe.`:`${r.d} Needs ${parts}.`,r.cost,'craft:'+r.id,locked||!have||S.gold<r.cost||owned,owned?'Owned':'Craft')}).join('');
+    const gsell=S.inv.filter(it=>!SLOTS.some(sl=>S.eq[sl]===it.u)).sort((a,b)=>b.r-a.r||b.il-a.il);
+    h+=`<h3>Sell gear</h3>`+(gsell.length?`<div class="mfoot" style="justify-content:flex-start;margin:4px 0 6px"><button class="btn sm" data-a="gsellc:0">Sell all Common</button><button class="btn sm" data-a="gsellc:1">Sell all Rare &amp; below</button></div>`+gsell.map(it=>itemRow(iname(it),idesc(it),it.v,'gsell:'+it.u,false,'Sell')).join(''):'<p class="sub">Unequipped weapons and armor you carry show up here.</p>');
+    const jk=Object.keys(S.loot).filter(i=>S.loot[i]>0&&LOOT[i].j),jv=jk.reduce((a,i)=>a+LOOT[i].v*S.loot[i],0);
+    if(jk.length)h+=`<div class="mfoot" style="justify-content:flex-start;margin:8px 0 0"><button class="btn sm" data-a="selljunk:0">Sell all valuables · ${jv} g</button></div>`;
     const sell=Object.keys(S.loot).filter(i=>S.loot[i]>0&&LOOT[i].v);
     h+=`<h3>Sell loot</h3>`+(sell.length?sell.map(i=>itemRow(LOOT[i].n,`${LOOT[i].v} g each · you carry ${S.loot[i]}`,LOOT[i].v*S.loot[i],'sell:'+i,false,'Sell all')).join(''):'<p class="sub">Monsters drop pelts, bones and stranger things. Every merchant buys them.</p>');
     return h+`<div class="mfoot"><button class="btn" data-a="close">Farewell</button></div>`;
   },a=>{const [t,v]=a.split(':');
     if(t==='sell'){const g=LOOT[v].v*S.loot[v];S.gold+=g;toast(`Sold ${S.loot[v]} ${LOOT[v].n} for ${g} g.`);S.loot[v]=0}
-    if(t==='buy'){const it=SUP[v];S.gold-=it.c;S.bag[v]++;toast(`Bought a ${it.n}.`)}
+    if(t==='buy'){const it=SUP[v];S.gold-=it.c;S.bag[v]+=v==='arrow'?20:1;toast(`Bought ${v==='arrow'?'20 arrows':'a '+it.n}.`)}
+    if(t==='gbuy'){const [,b,il]=a.split(':');const it=genItem(b,0,+il),c=it.v*5;if(S.gold>=c){S.gold-=c;S.inv.push(it);toast(autoEquip(it)?`Bought and equipped ${it.n}.`:`Bought ${it.n}. Equip it from your satchel (B).`)}}
+    if(t==='gsell'){const it=gi(+v);if(it){S.gold+=it.v;S.inv=S.inv.filter(x=>x!==it);toast(`Sold ${it.n} for ${it.v} g.`)}}
+    if(t==='gsellc'){let g=0,n=0;S.inv=S.inv.filter(it=>{if(it.r<=+v&&!SLOTS.some(sl=>S.eq[sl]===it.u)){g+=it.v;n++;return false}return true});if(n)toast(`Sold ${n} item${n>1?'s':''} for ${g} g.`)}
+    if(t==='selljunk'){let g=0;for(const i of Object.keys(S.loot))if(LOOT[i].j&&S.loot[i]>0){g+=LOOT[i].v*S.loot[i];S.loot[i]=0}S.gold+=g;toast(`Sold your valuables for ${g} g.`)}
     if(t==='wpn'){const w=WEAPONS[+v];S.gold-=w.c;S.wpn=+v;toast(`Equipped ${w.n}.`)}
     if(t==='arm'){const w=ARMORS[+v];S.gold-=w.c;S.arm=+v;toast(`Equipped ${w.n}.`)}
     if(t==='skill'){const sk=SKILLSHOP[v];S.gold-=sk.c;S.skills.push(v);toast(`You learned ${sk.n}!`)}
     if(t==='craft'){const r=RECIPES.find(x=>x.id===v);for(const [i,n] of Object.entries(r.need))S.loot[i]-=n;S.gold-=r.cost;
+      if(r.out.gear){const it=genItem(pick(r.out.gear),r.out.r,r.out.il);S.inv.push(it);const eqd=autoEquip(it);setTimeout(()=>toast(`Forged ${RAR[it.r].n}: ${it.n}${eqd?' (equipped)':''}!`),40)}
       if(r.out.bag)S.bag[r.out.bag]+=r.out.n;if(r.out.trinket){S.trinkets.push(r.out.trinket);if(!S.trk)S.trk=r.out.trinket}toast(`Crafted ${r.n}!`)}
     save();hud()},k);
 }
@@ -832,7 +1004,8 @@ function attack(){
   SHAKE.set(key,.25);chips(x,y,D.fx);
   if(hp>0){OBJHP.set(key,hp);return}
   OBJHP.delete(key);S.broken[key]=D.stump?'stump':'gone';if(D.stump)FALL.push({x,y,c,t:0,dir:P.dir==='left'?-1:1});rebuildBroken();
-  const got=[];for(const [it,a,b,ch] of (D.drop||[])){if(ch!==undefined&&Math.random()>ch)continue;const q=ri(a,b);if(q>0){S.loot[it]=(S.loot[it]||0)+q;got.push(`+${q} ${LOOT[it].n}`)}}
+  const got=[];for(const [it,ch] of xdrop(c,x,y))if(Math.random()<ch){S.loot[it]=(S.loot[it]||0)+1;got.push(`+1 ${LOOT[it].n}`)}
+  for(const [it,a,b,ch] of (D.drop||[])){if(ch!==undefined&&Math.random()>ch)continue;const q=ri(a,b);if(q>0){S.loot[it]=(S.loot[it]||0)+q;got.push(`+${q} ${LOOT[it].n}`)}}
   if(D.loot){const r=Math.random();if(r<.3){S.bag.potion++;got.push('+1 Healing Draught')}else if(r<.6){const g=ri(3,10);S.gold+=g;got.push(`+${g} g`)}else{S.loot.wood=(S.loot.wood||0)+1;got.push('+1 Oak Log')}}
   got.forEach((t,i)=>WFX.push({tx:x*TS+16,ty:y*TS-6-i*15,s:t,t:0,l:1.4}));save();hud();
   if(D.prop||D.stump||c==='_')crime(D.prop===2?'smashing a market stall':D.prop?'destroying property':'cutting down the town\'s trees',D.prop||1,null);
@@ -919,6 +1092,8 @@ function drawWorldFx(dt){
   cx.globalAlpha=1;for(let i=WFX.length-1;i>=0;i--)if(WFX[i].t>(WFX[i].l||1))WFX.splice(i,1);
   for(const [k,v] of SHAKE){const n=v-dt;if(n<=0)SHAKE.delete(k);else SHAKE.set(k,n)}}
 function drawSwing(px,py){if(!(P.swing>0))return;const p=1-P.swing/.22,cxp=px+16,cyp=py+16,base={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2}[P.dir],a0=base-1.1,a1=a0+2.2*p;
+  if(isBow()){const ca=Math.cos(base),sa=Math.sin(base);cx.strokeStyle='#7a5230';cx.lineWidth=3;cx.beginPath();cx.arc(cxp+ca*4,cyp+sa*4,13,base-1.2,base+1.2);cx.stroke();const d=8+p*52;seg([cxp+ca*d,cyp+sa*d,cxp+ca*(d+16),cyp+sa*(d+16)],2,'#e8e0cc');cx.fillStyle='#d8dde4';cx.fillRect(cxp+ca*(d+16)-2,cyp+sa*(d+16)-2,4,4);return}
+  if(offW()){const b1=base+1.1,b2=b1-2.2*Math.max(0,p-.15)/.85;cx.strokeStyle='rgba(255,255,255,.4)';cx.lineWidth=5;cx.beginPath();cx.arc(cxp,cyp,17,Math.min(b1,b2),Math.max(b1,b2));cx.stroke();seg([cxp+Math.cos(b2)*7,cyp+Math.sin(b2)*7,cxp+Math.cos(b2)*20,cyp+Math.sin(b2)*20],3,'#c8cdd4')}
   cx.strokeStyle='rgba(255,255,255,.55)';cx.lineWidth=6;cx.beginPath();cx.arc(cxp,cyp,20,a0,a1);cx.stroke();
   const ex=cxp+Math.cos(a1)*24,ey=cyp+Math.sin(a1)*24;seg([cxp+Math.cos(a1)*8,cyp+Math.sin(a1)*8,ex,ey],3,'#d8dde4');cx.fillStyle='#c9952f';cx.fillRect(cxp+Math.cos(a1)*8-2,cyp+Math.sin(a1)*8-2,4,4)}
 function search(x,y,t){
@@ -942,28 +1117,37 @@ function openStats(){
       <div><span>Max HP</span><b>${maxHP()}</b></div><div><span>Max MP</span><b>${maxMP()}</b></div>
       <div><span>Crit</span><b>${Math.round(crit()*100)}%</b></div><div><span>Dodge</span><b>${Math.round(dodge()*100)}%</b></div>
       <div><span>Fire</span><b>~${spell()}</b></div><div><span>Heal</span><b>${12+E('int')*4}</b></div></div>
-      <p class="sub">${WEAPONS[S.wpn].n} · ${ARMORS[S.arm].n}</p>`;
+      <p class="sub">${SLOTS.map(sl=>EQ(sl)).filter(Boolean).map(it=>iname(it)).join(' · ')||'No gear equipped'}</p>`;
     h+=confirmReset?`<div class="mfoot"><span class="sub" style="margin-right:auto">Erase this save and start over?</span><button class="btn sm" data-a="noreset">Keep playing</button><button class="btn sm seal" data-a="doreset">Erase</button></div>`
       :`<div class="mfoot"><button class="btn sm" data-a="reset" style="margin-right:auto">New game</button><button class="btn" data-a="close">Close</button></div>`;
     return h;
   },a=>{
     if(a.startsWith('add:')&&S.pts>0){const k=a.slice(4);S.st[k]++;S.pts--;if(k==='vit')S.hp+=6;if(k==='int')S.mp+=4;save();hud()}
     if(a==='reset')confirmReset=true;if(a==='noreset')confirmReset=false;
-    if(a==='doreset'){S=NEW();S.hp=maxHP();S.mp=maxMP();placePlayer(OX+7,OY+11,'down');save();hud();closeModal();openIntro();return false}
+    if(a==='doreset'){S=NEW();initGear();S.hp=maxHP();S.mp=maxMP();placePlayer(OX+7,OY+11,'down');save();hud();closeModal();openIntro();return false}
   });
 }
 const useRow=(n,d,q,a,dis)=>`<div class="item"><div><b>${n}</b><small>${d}</small></div><span class="price">×${q}</span><button class="btn sm" data-a="${a}" ${dis?'disabled':''}>Use</button></div>`;
 function openBag(){
-  if(scene==='battle')return;
-  modal(()=>`<h2>Satchel</h2>
-    ${['potion','hipotion','ether','elixir','flask','smoke'].filter(k=>S.bag[k]>0||k==='potion'||k==='ether').map(k=>useRow(SUP[k].n,SUP[k].d,S.bag[k],'use:'+k,!S.bag[k]||k==='flask'||k==='smoke'||((k==='potion'||k==='hipotion')&&S.hp>=maxHP())||((k==='ether'||k==='elixir')&&S.mp>=maxMP()))).join('')}
-    <h3>Trinket</h3>${S.trinkets.length?S.trinkets.map(i=>`<div class="item"><div><b>${TRINKETS[i].n}</b><small>${TRINKETS[i].d}</small></div><span></span><button class="btn sm" data-a="trk:${S.trk===i?0:i}">${S.trk===i?'Unequip':'Equip'}</button></div>`).join(''):'<p class="sub">No trinkets yet. Gunnar the smith in Aldermoor forges them from loot.</p>'}
-    <h3>Loot</h3>${Object.keys(S.loot).filter(k=>S.loot[k]>0).map(k=>`<div class="item"><div><b>${LOOT[k].n}</b><small>${LOOT[k].v?`Sells for ${LOOT[k].v} g, or use in crafting`:'Quest item'}</small></div><span class="price">×${S.loot[k]}</span></div>`).join('')||'<p class="sub">Nothing yet. Defeated monsters sometimes drop loot.</p>'}
-    ${S.skills.length?'<h3>Spells learned</h3><p>'+S.skills.map(k=>SKN[k]).join(', ')+'</p>':''}
-    <h3>Equipped</h3><p>${WEAPONS[S.wpn].n} <span class="sub">(+${WEAPONS[S.wpn].a} attack)</span></p><p>${ARMORS[S.arm].n} <span class="sub">(+${ARMORS[S.arm].d} defense)</span></p>
-    <div class="mfoot"><button class="btn" data-a="close">Close</button></div>`,
-  a=>{const [t,v]=a.split(':');if(t==='trk'){S.trk=+v;S.hp=Math.min(S.hp,maxHP());S.mp=Math.min(S.mp,maxMP())}
-    if(t==='use'){S.bag[v]--;const H={potion:[40,0],hipotion:[90,0],ether:[0,20],elixir:[0,45]}[v];S.hp=Math.min(maxHP(),S.hp+H[0]);S.mp=Math.min(maxMP(),S.mp+H[1])}save();hud()});
+  if(scene==='battle')return;let tab=0;
+  modal(()=>{const SN={main:'Main hand',off:'Off hand',body:'Body'};
+    let h=`<h2>Satchel</h2><div class="mfoot" style="justify-content:flex-start;margin:0 0 8px"><button class="btn sm${tab===0?' seal':''}" data-a="tab:0">Gear</button><button class="btn sm${tab===1?' seal':''}" data-a="tab:1">Supplies</button><button class="btn sm${tab===2?' seal':''}" data-a="tab:2">Materials</button></div>`;
+    if(tab===0){h+=`<h3>Equipped</h3>`+SLOTS.map(sl=>{const it=EQ(sl);return `<div class="item"><div><small>${SN[sl]}</small>${it?iname(it):'<b class="sub">Empty</b>'}<small>${it?idesc(it):sl==='off'?'Hold a shield, or a sword, axe, mace or dagger to dual wield.':''}</small></div><span></span>${it?`<button class="btn sm" data-a="uneq:${sl}">Remove</button>`:'<span></span>'}</div>`}).join('');
+      h+=`<p class="sub">Attack ${atk()}${offW()?` + off-hand ${offAtk()}`:''} · Defense ${defn()} · Spell ${spell()}${blockCh()?` · Block ${Math.round(blockCh()*100)}%`:''}${isBow()?` · Arrows ${hasFx('quiver')?'∞':S.bag.arrow}`:''}</p>`;
+      const inv=S.inv.filter(it=>!SLOTS.some(sl=>S.eq[sl]===it.u)).sort((a,b)=>b.r-a.r||b.il-a.il||power(b)-power(a));
+      h+=`<h3>Pack (${S.inv.length}/80)</h3>`+(inv.length?inv.map(it=>{const G=GB[it.b],sl=slotOfItem(it),cur=EQ(sl),dl=Math.round(power(it)-(cur?power(cur):0));
+        const btn=G.hand===1?`<span style="display:flex;gap:4px"><button class="btn sm" data-a="eq:${it.u}:main">Main</button><button class="btn sm" data-a="eq:${it.u}:off">Off</button></span>`:`<button class="btn sm" data-a="eq:${it.u}:${sl}">Equip</button>`;
+        return `<div class="item"><div>${iname(it)}<small>${idesc(it)}</small></div><span class="price" style="color:${dl>0?'#2f7a2a':dl<0?'#9a3a2a':'#7a5314'}">${dl>0?'▲':dl<0?'▼':'='}</span>${btn}</div>`}).join(''):'<p class="sub">Monsters drop weapons and armor. The rarer the color, the stronger it is: <b style="color:#4a4033">Common</b>, <b style="color:#1d5cb4">Rare</b>, <b style="color:#7a2db0">Epic</b>, <b style="color:#b05000">Legendary</b>, <b style="color:#b0101e">Artifact</b>.</p>');
+      h+=`<h3>Trinket</h3>${S.trinkets.length?S.trinkets.map(i=>`<div class="item"><div><b>${TRINKETS[i].n}</b><small>${TRINKETS[i].d}</small></div><span></span><button class="btn sm" data-a="trk:${S.trk===i?0:i}">${S.trk===i?'Unequip':'Equip'}</button></div>`).join(''):'<p class="sub">No trinkets yet. Gunnar the smith in Aldermoor forges them from loot and gems.</p>'}`}
+    if(tab===1){h+=['potion','hipotion','roast','stew','ether','elixir','flask','smoke'].filter(k=>S.bag[k]>0||k==='potion'||k==='ether').map(k=>useRow(SUP[k].n,SUP[k].d,S.bag[k],'use:'+k,!S.bag[k]||k==='flask'||k==='smoke'||((k==='potion'||k==='hipotion'||k==='roast')&&S.hp>=maxHP())||((k==='ether'||k==='elixir')&&S.mp>=maxMP())||(k==='stew'&&S.hp>=maxHP()&&S.mp>=maxMP()))).join('');
+      h+=`<p class="sub">Arrows: ${S.bag.arrow}</p>`+(S.skills.length?'<h3>Spells learned</h3><p>'+S.skills.map(k=>SKN[k]).join(', ')+'</p>':'')}
+    if(tab===2){const ks=Object.keys(S.loot).filter(k=>S.loot[k]>0),row=k=>`<div class="item"><div><b>${LOOT[k].n}</b><small>${LOOT[k].v?`Sells for ${LOOT[k].v} g${LOOT[k].j?'':', or use in crafting'}`:'Quest item'}</small></div><span class="price">×${S.loot[k]}</span></div>`;
+      const mats=ks.filter(k=>!LOOT[k].j),val=ks.filter(k=>LOOT[k].j);
+      h+=`<h3>Materials</h3>${mats.map(row).join('')||'<p class="sub">Hides, meat, ore and gems come from monsters, rocks and trees.</p>'}`+(val.length?`<h3>Valuables</h3><p class="sub">Only good for selling.</p>${val.map(row).join('')}`:'')}
+    return h+`<div class="mfoot"><button class="btn" data-a="close">Close</button></div>`},
+  a=>{const [t,v,w]=a.split(':');if(t==='tab')tab=+v;if(t==='trk'){S.trk=+v;S.hp=Math.min(S.hp,maxHP());S.mp=Math.min(S.mp,maxMP())}
+    if(t==='eq')equip(+v,w);if(t==='uneq'){S.eq[v]=null;S.hp=Math.min(S.hp,maxHP());S.mp=Math.min(S.mp,maxMP())}
+    if(t==='use'){S.bag[v]--;const H={potion:[40,0],hipotion:[90,0],ether:[0,20],elixir:[0,45],roast:[30,0],stew:[70,15]}[v];S.hp=Math.min(maxHP(),S.hp+H[0]);S.mp=Math.min(maxMP(),S.mp+H[1])}save();hud()});
 }
 function openIntro(){modal(()=>`<h2>Hollowmere</h2><p>A walled market town in the middle of open country. Walk out any of its four gates and keep going. Meadows and tall grass surround it, Mirror Lake lies to the east, the Darkwood to the north-west, and far down the east road stands the castle city of Aldermoor.</p>
   <p class="sub">Walk into a door to go inside. At the Sleeping Stag Inn, check in with Bram, then sleep in a bed to switch between day and night. Different monsters hunt the meadows at night. The Darkwood is always dark and always dangerous. Townsfolk with a gold ! have quests. Press M for the map and Q for your quest log. Each level gives you 3 talent points.</p>
@@ -989,6 +1173,7 @@ function interactAt(x,y,bump){
   if(M.outdoor){const o=objAt(S.map,x,y);
     if(o==='U'){enterDoor(x,y);return} if(o==='P'){const sg=SIGNS[x+','+y]||['Signpost','The words have worn away.'];say(sg[0],sg[1]);return}
     if(bump)return;
+    if(o==='H'){openReliq(x,y);return}
     if(o==='O'){const h=Math.min(maxHP()-S.hp,8);S.hp+=h;hud();save();say('Town Well',h?`You draw a bucket of cold water and drink. +${h} HP.`:'You drink cold, clear water. Refreshing.')}
     else if(o==='k')say('Market Stall',hash(x,y,3)<.5?'Red apples, rye loaves and a wheel of cheese. The stallkeeper is off at lunch.':'Bolts of dyed wool and a basket of eggs. A sign says "Back soon."');
     else if('bxh'.includes(o)&&o!==' ')search(x,y,o);
@@ -1039,7 +1224,7 @@ function arrive(){
   const wp=M.warps&&M.warps[P.x+','+P.y];if(wp){fade(()=>{S.map=wp.map;placePlayer(wp.x,wp.y,wp.dir||'down');save();checkArea();hud()},null,true);return}
   if(S.map==='world'&&g==='Q'){fade(()=>{S.map='sewer';placePlayer(MAPS.sewer.spawn[0],MAPS.sewer.spawn[1],'down');save();checkArea();hud()},null,true);return}
   save();checkArea();
-  if(S.map==='world'){const z=ZONE[P.y][P.x],E={0:['v','wilds',.14],2:['dy~','forest',.12],3:['M','marsh',.12],4:['g','crags',.11],5:['u.','ruins',.12]}[z];
+  if(S.map==='world'){const z=ZONE[P.y][P.x],E={0:['v','wilds',.14],2:['dy~','forest',.12],3:['M','marsh',.12],4:['g','crags',.11],5:['u.','ruins',.12],7:['u.dM','ancient',.13]}[z];
     if(E&&E[0].includes(g)){P.enc++;if(P.enc>=3&&Math.random()<(g==='~'?.05:E[2])){P.enc=0;startBattle(E[1])}}}
   else if(M.enc&&',o=g'.includes(g)){P.enc++;if(P.enc>=4&&Math.random()<.1){P.enc=0;startBattle(M.enc)}}
 }
@@ -1401,7 +1586,7 @@ function drawMinimap(){cx.imageSmoothingEnabled=false;const big=MMODE===2;
   for(const [mx,my,mk] of mapMarkers()){cx.fillStyle=mk==='?'?'#9bd36a':'#f3c24a';cx.fillRect(x0+mx*sc-(big?4:2),y0+my*sc-(big?4:2),big?8:4,big?8:4)}
   for(const b of BOSSES)if(!b.map&&!S.bossDown.includes(b.id)){cx.fillStyle='#ff4a3c';const bx=x0+b.x*sc,by=y0+b.y*sc,r=big?6:3;cx.beginPath();cx.moveTo(bx,by-r);cx.lineTo(bx+r,by);cx.lineTo(bx,by+r);cx.lineTo(bx-r,by);cx.fill()}
   if(big){cx.font='22px "Jacquard 24", Georgia, serif';cx.textAlign='center';cx.lineWidth=4;cx.strokeStyle='#20160f';
-    [['The Darkwood',40,40],['Murkfen Marsh',38,150],['Ashen Crags',200,148],['Ruins of Varn',150,20],['Mirror Lake',205,40],['Hollowmere',120,70],["Hunter's Camp",70,110],['Open Fields',170,110],['Aldermoor',283,60]].forEach(([t,lx,ly])=>{cx.strokeText(t,x0+lx*sc,y0+ly*sc);cx.fillStyle='#efe3c4';cx.fillText(t,x0+lx*sc,y0+ly*sc)});
+    [["Dragon's Roost",288,8],['Tomb of Malgorath',22,3],['Sunken Sanctum',24,148],['The Darkwood',40,40],['Murkfen Marsh',38,150],['Ashen Crags',200,148],['Ruins of Varn',150,20],['Mirror Lake',205,40],['Hollowmere',120,70],["Hunter's Camp",70,110],['Open Fields',170,110],['Aldermoor',283,60]].forEach(([t,lx,ly])=>{cx.strokeText(t,x0+lx*sc,y0+ly*sc);cx.fillStyle='#efe3c4';cx.fillText(t,x0+lx*sc,y0+ly*sc)});
     for(const b of BOSSES)if(!b.map&&!S.bossDown.includes(b.id)){cx.font='700 13px "Alegreya SC", Georgia, serif';cx.strokeText(b.n,x0+b.x*sc,y0+b.y*sc-10);cx.fillStyle='#ff8a70';cx.fillText(b.n,x0+b.x*sc,y0+b.y*sc-10)}
     cx.font='700 14px "Alegreya SC", Georgia, serif';cx.fillStyle='#efe3c4';cx.fillText('Gold ! = new quest   Green ? = ready to hand in   Red = boss   Press M to close',W/2,y0+h+20);cx.textAlign='left'}
   const pl=Math.sin(T*6)>0;cx.fillStyle=pl?'#ffffff':'#ff3b3b';const pr=big?5:3;cx.fillRect(x0+P.x*sc-pr,y0+P.y*sc-pr,pr*2,pr*2)}
@@ -1476,6 +1661,7 @@ function drawObj(m,o,X,Y,x,y,night){switch(o){
   case 'N':sprite('N',1,X,Y,(a,b)=>tent(a,b));break;
   case 'k':sprite('k'+Math.floor(hash(x,y,2)*3)+(x%2),1,X,Y,(a,b)=>stall(a,b,x,y));break;
   case 'L':sprite('L'+(night?1:0),1,X,Y,(a,b)=>lamp(a,b,night));break;
+  case 'H':{const op=S.relics.includes(x+','+y);sprite('H'+(op?1:0),1,X,Y,(a,b)=>reliq(a,b,op));break}
   case 'Z':tower(X,Y);break;case 'Y':willow(X,Y,x);break;case 'j':campfire(X,Y);break;case 'V':windmill(X,Y);break;case 'e':sheep(X,Y,x,y);break}}
 function drawFurn(m,t,X,Y,x,y){const ol=OUTL_IN.has(t)?1:0,L=c=>tileAt(m,x-1,y)===c?1:0,R=c=>tileAt(m,x+1,y)===c?1:0;let key;
   switch(t){case 'G':case 'V':case 'n':case 'A':furniture(t,X,Y,x,y,m);return;
@@ -1673,6 +1859,54 @@ function drawMonster(id,k,fl,v){
     cx.fillStyle=bone;circ(0,-196-b,22);cx.fillRect(-13,-182-b,26,12);cx.fillStyle=ir;cx.beginPath();cx.arc(0,-200-b,24,Math.PI,0);cx.fill();
     cx.fillStyle=c('#b8b1a4');tri(-22,-206-b,-46,-240-b,-14,-214-b);tri(22,-206-b,46,-240-b,14,-214-b);
     cx.fillStyle='#111';circ(-8,-194-b,6);circ(8,-194-b,6);cx.fillStyle=c('#7fff7a');if(!fl){cx.shadowColor='#7fff7a';cx.shadowBlur=12}circ(-8,-194-b,2.5);circ(8,-194-b,2.5);cx.shadowBlur=0;break}
+  case 'dragon':{const b=k*3,sc=c('#4a2c2c'),dk=c('#2e1a1c'),bel=c('#c9894a'),wg=c('#2a161a'),mem=c('#6b3a32'),hn=c('#e2d8bf'),ey=fl?'#fff':'#ffcf3a',w=Math.sin(T*2.2)*12;
+    for(const s of [-1,1]){cx.fillStyle=mem;cx.beginPath();cx.moveTo(s*40,-170-b);cx.lineTo(s*160,-250-b-w);cx.lineTo(s*192,-140-b-w*.5);cx.quadraticCurveTo(s*165,-148-b,s*150,-110-b);
+      cx.quadraticCurveTo(s*122,-132-b,s*105,-90-b);cx.quadraticCurveTo(s*80,-115-b,s*55,-95-b);cx.closePath();cx.fill();
+      cx.strokeStyle=wg;cx.lineWidth=8;cx.beginPath();cx.moveTo(s*40,-170-b);cx.lineTo(s*160,-250-b-w);cx.lineTo(s*192,-140-b-w*.5);cx.stroke();
+      cx.lineWidth=3;cx.beginPath();cx.moveTo(s*160,-250-b-w);cx.lineTo(s*150,-110-b);cx.moveTo(s*160,-250-b-w);cx.lineTo(s*105,-90-b);cx.moveTo(s*160,-250-b-w);cx.lineTo(s*55,-95-b);cx.stroke();
+      cx.fillStyle=hn;tri(s*158,-252-b-w,s*172,-268-b-w,s*166,-246-b-w)}
+    seg([50,-28,120,-18,160,-50,176,-88],22,sc);seg([50,-28,120,-18,160,-50,176,-88],6,dk);cx.fillStyle=dk;tri(168,-96,194,-116,184,-78);
+    cx.fillStyle=dk;ell(-62,-52,32,46);ell(62,-52,32,46);cx.fillStyle=sc;rr(-84,-20,44,20,6);rr(40,-20,44,20,6);
+    cx.fillStyle=hn;for(const fx0 of [-82,-70,-58,42,54,66])tri(fx0,-2,fx0+10,-2,fx0+5,6);
+    cx.fillStyle=sc;ell(0,-112-b,80,72);cx.fillStyle=bel;ell(0,-98-b,46,54);
+    cx.strokeStyle=c('#a86a36');cx.lineWidth=2;for(let i=0;i<6;i++){const hw=40-Math.abs(i-2.5)*5;cx.beginPath();cx.moveTo(-hw,-134-b+i*15);cx.lineTo(hw,-134-b+i*15);cx.stroke()}
+    seg([-56,-138-b,-74,-86-b,-58,-40],18,sc);seg([56,-138-b,74,-86-b,58,-40],18,sc);cx.fillStyle=hn;tri(-66,-44,-50,-44,-58,-32);tri(50,-44,66,-44,58,-32);
+    cx.fillStyle=sc;cx.beginPath();cx.moveTo(-30,-160-b);cx.quadraticCurveTo(-34,-215-b,-22,-240-b);cx.lineTo(22,-240-b);cx.quadraticCurveTo(34,-215-b,30,-160-b);cx.closePath();cx.fill();
+    cx.fillStyle=bel;cx.fillRect(-11,-232-b,22,74);cx.fillStyle=dk;for(let i=0;i<5;i++)tri(-5,-176-b-i*14,5,-176-b-i*14,0,-190-b-i*14);
+    cx.fillStyle=sc;ell(0,-256-b,38,26);rr(-24,-256-b,48,46,14);cx.fillStyle=dk;rr(-18,-222-b,36,12,5);
+    cx.fillStyle='#111';circ(-8,-218-b,3);circ(8,-218-b,3);
+    if(!fl){const e=(T*24)%14;cx.fillStyle=`rgba(255,150,40,${.7-e/20})`;circ(-9,-212-b+e,3-e/7);circ(9,-212-b+e*.8,3-e/7)}
+    cx.fillStyle=hn;tri(-28,-266-b,-62,-312-b,-16,-272-b);tri(28,-266-b,62,-312-b,16,-272-b);tri(-36,-252-b,-58,-262-b,-34,-246-b);tri(36,-252-b,58,-262-b,34,-246-b);
+    cx.fillStyle=dk;tri(-6,-280-b,0,-298-b,6,-280-b);
+    cx.fillStyle=ey;if(!fl){cx.shadowColor='#ffb020';cx.shadowBlur=14}tri(-26,-262-b,-8,-256-b,-22,-250-b);tri(26,-262-b,8,-256-b,22,-250-b);cx.shadowBlur=0;
+    cx.fillStyle='#111';cx.fillRect(-19,-259-b,2,6);cx.fillRect(17,-259-b,2,6);break}
+  case 'lich':{const b=k*6,rb=c('#2a1f3a'),rb2=c('#3f2d58'),bone=c('#e2dccb'),gl=fl?'#fff':'#9cff6a',gd=c('#d8a93a');
+    if(!fl){const g=cx.createRadialGradient(0,-140-b,10,0,-140-b,130);g.addColorStop(0,'rgba(140,255,120,.28)');g.addColorStop(1,'rgba(140,255,120,0)');cx.fillStyle=g;circ(0,-140-b,130)}
+    cx.fillStyle=rb;cx.beginPath();cx.moveTo(-30,-182-b);cx.lineTo(30,-182-b);cx.lineTo(64,-28-b);for(let i=0;i<7;i++)cx.lineTo(64-i*21.3,-28-b+(i%2?-24:8)+Math.sin(T*3+i)*5);cx.lineTo(-64,-28-b);cx.closePath();cx.fill();
+    cx.fillStyle=rb2;tri(-30,-182-b,-6,-182-b,-40,-40-b);tri(30,-182-b,6,-182-b,40,-40-b);seg([0,-172-b,0,-44-b],7,gd);for(let i=0;i<4;i++){cx.fillStyle=gd;circ(0,-150-b+i*28,4)}
+    cx.fillStyle=rb2;ell(-36,-172-b,24,15);ell(36,-172-b,24,15);cx.fillStyle=bone;for(const s of [-1,1]){tri(s*24,-182-b,s*50,-206-b,s*44,-176-b);tri(s*44,-178-b,s*66,-196-b,s*58,-170-b)}
+    seg([-42,-166-b,-66,-122-b,-60,-98-b],10,rb);cx.fillStyle=bone;circ(-60,-94-b,7);seg([-60,-92-b,-66,-80-b],2,bone);seg([-60,-92-b,-56,-80-b],2,bone);
+    seg([66,-14-b,74,-262-b],7,c('#3a2a1a'));seg([42,-166-b,66,-130-b],10,rb);cx.fillStyle=bone;circ(68,-128-b,7);
+    seg([62,-262-b,74,-286-b,86,-262-b],3,c('#5a4a2a'));if(!fl){cx.shadowColor='#9cff6a';cx.shadowBlur=22}cx.fillStyle=gl;circ(74,-270-b,12+Math.sin(T*4)*2);cx.shadowBlur=0;
+    cx.fillStyle=rb;ell(0,-204-b,32,34);cx.fillStyle='#0c0812';ell(0,-198-b,22,24);cx.fillStyle=bone;ell(0,-198-b,17,19);cx.fillRect(-10,-186-b,20,12);
+    cx.fillStyle='#0c0812';for(let i=0;i<4;i++)cx.fillRect(-8+i*5,-184-b,2,8);circ(-7,-202-b,5.5);circ(7,-202-b,5.5);tri(-2,-192-b,2,-192-b,0,-196-b);
+    cx.fillStyle=gl;if(!fl){cx.shadowColor='#9cff6a';cx.shadowBlur=12}circ(-7,-202-b,2.5);circ(7,-202-b,2.5);cx.shadowBlur=0;
+    cx.fillStyle=gd;cx.fillRect(-26,-232-b,52,7);for(let i=0;i<5;i++)tri(-26+i*13,-232-b,-19.5+i*13,-252-b+(i===2?-8:0),-13+i*13,-232-b);cx.fillStyle=c('#c0283a');circ(0,-228-b,3.5);
+    for(let i=0;i<5;i++){const a=T*1.4+i*1.26;cx.fillStyle=gl;cx.globalAlpha=.7;circ(Math.cos(a)*92,-120-b+Math.sin(a)*34,4);cx.globalAlpha=1}break}
+  case 'sentinel':{const b=k*2,br=c('#8a6a3a'),dk=c('#5a4226'),gd=c('#d9b45a'),gl=fl?'#fff':'#6ff5ff',mo=c('#4f7a5a');
+    cx.fillStyle=dk;rr(-60,-74,40,74,8);rr(20,-74,40,74,8);cx.fillStyle=br;rr(-66,-16,52,16,5);rr(14,-16,52,16,5);cx.fillStyle=gd;cx.fillRect(-60,-56,40,5);cx.fillRect(20,-56,40,5);
+    cx.fillStyle=br;cx.beginPath();cx.moveTo(-84,-206-b);cx.lineTo(84,-206-b);cx.lineTo(56,-70-b);cx.lineTo(-56,-70-b);cx.closePath();cx.fill();
+    cx.fillStyle=dk;cx.fillRect(-56,-88-b,112,14);cx.strokeStyle=gd;cx.lineWidth=4;cx.beginPath();cx.moveTo(-84,-206-b);cx.lineTo(84,-206-b);cx.stroke();
+    cx.fillStyle=mo;ell(-50,-190-b,18,6);ell(40,-110-b,14,5);ell(-30,-96-b,10,4);
+    if(!fl){cx.shadowColor='#6ff5ff';cx.shadowBlur=16}cx.strokeStyle=gl;cx.lineWidth=3;cx.beginPath();cx.moveTo(-40,-180-b);cx.lineTo(-22,-150-b);cx.lineTo(-40,-120-b);cx.moveTo(40,-180-b);cx.lineTo(22,-150-b);cx.lineTo(40,-120-b);cx.stroke();
+    cx.fillStyle=gl;circ(0,-150-b,15+Math.sin(T*3)*2);cx.shadowBlur=0;cx.strokeStyle=gd;cx.lineWidth=4;cx.beginPath();cx.arc(0,-150-b,22,0,7);cx.stroke();
+    seg([-84,-196-b,-108,-150-b,-104,-110-b],22,dk);cx.fillStyle=gd;circ(-112,-118-b,52);cx.fillStyle=br;circ(-112,-118-b,42);cx.fillStyle=dk;circ(-112,-118-b,14);
+    cx.strokeStyle=gl;cx.lineWidth=2;cx.beginPath();cx.arc(-112,-118-b,28,T,T+4);cx.stroke();
+    seg([84,-196-b,108,-150-b,112,-112-b],22,dk);seg([112,-40-b,124,-300-b],8,c('#6b4a26'));cx.fillStyle=gd;tri(116,-300-b,132,-300-b,124,-340-b);seg([110,-114-b,124,-110-b],10,dk);
+    cx.fillStyle=br;rr(-30,-250-b,60,46,12);cx.fillStyle=gd;cx.fillRect(-30,-236-b,60,5);cx.fillStyle='#111';rr(-22,-230-b,44,12,5);
+    cx.fillStyle=gl;if(!fl){cx.shadowColor='#6ff5ff';cx.shadowBlur=14}const ex=Math.sin(T*1.6)*12;rr(-6+ex,-228-b,12,8,3);cx.shadowBlur=0;
+    cx.strokeStyle=gd;cx.lineWidth=3;cx.beginPath();cx.ellipse(0,-262-b,64,12,Math.sin(T)*.15,0,7);cx.stroke();
+    for(let i=0;i<3;i++){const a=T*1.2+i*2.09;cx.fillStyle=gd;cx.fillRect(Math.cos(a)*64-4,-262-b+Math.sin(a)*12-4,8,8)}break}
   case 'person':{cx.save();cx.scale(4.2,4.2);drawPerson(-16,-30,PEOPLE[v]||PEOPLE.player,'down');if(fl){cx.globalCompositeOperation='source-atop';cx.fillStyle='rgba(255,255,255,.7)';cx.fillRect(-20,-50,40,52)}cx.restore();break}
   case 'spider':{const b=k*3,leg=c('#1e1826');
     [-1,1].forEach(s=>{for(let i=0;i<4;i++){const kx=s*(36+i*10),ky=-74+i*14-b+Math.sin(T*6+i+s)*3,fx2=s*(58+i*14),fy=-2;seg([s*12,-40-b,kx,ky,fx2,fy],5,leg)}});
@@ -1702,11 +1936,12 @@ function startBattle(zone='wilds',boss=null,opts=null){
     m={...base,lv,maxhp:Math.round(base.hp*(1+.22*k)),atk:Math.round(base.atk*(1+.14*k)),def:Math.round(base.def*(1+.12*k)),xp:Math.round(base.xp*(1+.25*k)),g:Math.round(base.g*(1+.2*k))}}
   m.hp=m.maxhp;
   const foes=opts&&opts.mons?opts.mons:[m],sp=foes.length<=2?200:foes.length===3?170:130;foes.forEach((f,i)=>{f.sx=320+(i-(foes.length-1)/2)*sp});
-  B={foes,opts,m,zone,busy:false,menu:'main',fx:[],shake:0,flash:0,pflash:0,lunge:0,alpha:1,slash:0,fire:0,holy:0,intro:1,over:false,lines:[]};
+  const src=zone;if(zone==='ancient')zone='ruins';
+  B={src,foes,opts,m,zone,busy:false,menu:'main',fx:[],shake:0,flash:0,pflash:0,lunge:0,alpha:1,slash:0,fire:0,holy:0,intro:1,over:false,lines:[]};
   scene='battle';held.length=0;$('#battleUI').hidden=false;$('#controls').style.display='none';
-  const verb={forest:'lunges out of the dark',marsh:'surges up out of the bog',crags:'scrambles down the rocks',ruins:'stirs among the ruins'}[zone]||'leaps from the grass';
+  const verb={ruins:B.src==='ancient'?'rises from the ancient stones':'stirs among the ruins',forest:'lunges out of the dark',marsh:'surges up out of the bog',crags:'scrambles down the rocks'}[zone]||'leaps from the grass';
   if(foes.length>1)log(`${foes.length} ${m.guard?'guards':'foes'} close in around you!`);else log(m.person?(m.guard?`${m.n} draws steel! "You'll regret that!"`:`${m.n} shrieks and raises their fists!`):boss?`${m.n} rises to face you!`:`A level ${lv} ${m.n} ${verb}!`);
-  if(!boss&&!m.person&&Math.random()<clamp(.18+(m.agi-E('agi'))*.04,.05,.5)){B.busy=true;log(`The ${m.n} strikes first!`);setTimeout(enemyTurn,900)}
+  if(!boss&&!m.person&&!isBow()&&Math.random()<clamp(.18+(m.agi-E('agi'))*.04,.05,.5)){B.busy=true;log(`The ${m.n} strikes first!`);setTimeout(enemyTurn,900)}
   renderActions();
 }
 function log(s){B.lines.push(s);if(B.lines.length>5)B.lines.shift();$('#log').innerHTML=B.lines.map(l=>`<p>${l}</p>`).join('')}
@@ -1714,9 +1949,9 @@ function fx(s,x,y,col,big){B.fx.push({s,x,y,col,big,t:0})}
 function renderActions(){
   const box=$('#actions');let items;
   if(B.over)items=[[B.lost?'Wake at the inn':(B.fled?'Return':'Continue'),endBattle]];
-  else if(B.menu==='main')items=[['Attack',actAttack],['Skills',()=>{B.menu='skills';renderActions()}],['Items',()=>{B.menu='items';renderActions()}],['Flee',actRun,B.m.boss||B.m.noflee]];
+  else if(B.menu==='main')items=[[isBow()?(hasFx('quiver')?'Shoot':`Shoot (${S.bag.arrow})`):offW()?'Attack ×2':'Attack',actAttack],['Skills',()=>{B.menu='skills';renderActions()}],['Items',()=>{B.menu='items';renderActions()}],['Flee',actRun,B.m.boss||B.m.noflee]];
   else if(B.menu==='skills')items=[['Power Strike · 4 MP',()=>skill('power'),S.mp<4],['Fire · 5 MP',()=>skill('fire'),S.mp<5],['Heal · 6 MP',()=>skill('heal'),S.mp<6||S.hp>=maxHP()],...(S.skills.includes('smite')?[['Smite · 7 MP',()=>skill('smite'),S.mp<7]]:[]),...(S.skills.includes('frost')?[['Frostbolt · 6 MP',()=>skill('frost'),S.mp<6]]:[]),...(S.skills.includes('bolt')?[['Lightning · 10 MP',()=>skill('bolt'),S.mp<10]]:[]),['Back',()=>{B.menu='main';renderActions()}]];
-  else{const SH={potion:'Draught',hipotion:'Greater',ether:'Tonic',elixir:'Elixir',flask:'Fire Flask',smoke:'Smoke'};items=['potion','hipotion','ether','elixir','flask','smoke'].filter(k=>S.bag[k]>0||k==='potion'||k==='ether'||k==='smoke').map(k=>[`${SH[k]} ×${S.bag[k]}`,()=>item(k),!S.bag[k]]);items.push(['Back',()=>{B.menu='main';renderActions()}])}
+  else{const SH={potion:'Draught',hipotion:'Greater',ether:'Tonic',elixir:'Elixir',flask:'Fire Flask',smoke:'Smoke',roast:'Roast',stew:'Stew'};items=['potion','hipotion','roast','stew','ether','elixir','flask','smoke'].filter(k=>S.bag[k]>0||k==='potion'||k==='ether'||k==='smoke').map(k=>[`${SH[k]} ×${S.bag[k]}`,()=>item(k),!S.bag[k]]);items.push(['Back',()=>{B.menu='main';renderActions()}])}
   if(!B.over&&B.menu==='main'&&B.foes.filter(f=>f.hp>0).length>1)items.push([`Target ▸ ${B.m.n}`,cycleTarget]);
   box.innerHTML='';items.forEach(([label,fn,dis],i)=>{const b=document.createElement('button');b.className='btn'+(B.over?' seal':'');b.innerHTML=`<kbd>${i+1}</kbd>${label}`;
     b.disabled=!!dis||(B.busy&&!B.over);b.onclick=()=>{if(B&&(B.over||!B.busy))fn()};box.appendChild(b)});
@@ -1724,10 +1959,25 @@ function renderActions(){
 function hitMonster(d,col,big){B.m.hp=Math.max(0,B.m.hp-d);B.shake=.3;B.flash=.14;fx(String(d),(B.m.sx||320)+rnd(-24,24),210,col||'#ffffff',big)}
 function cycleTarget(){const al=B.foes.filter(f=>f.hp>0);const i=al.indexOf(B.m);B.m=al[(i+1)%al.length];renderActions()}
 function physical(mult){let d=Math.max(1,Math.round(atk()*mult*rnd(.85,1.15)-B.m.def*.5));const c=Math.random()<crit();if(c)d=Math.round(d*1.75);return [d,c]}
+function strike(mult,off,col,big){const w=off?offW():EQ('main');let base=off?offAtk():atk();if(!off&&B.noArrow)base=Math.round(base*.35);
+  let d=Math.max(1,Math.round(base*mult*rnd(.85,1.15)-B.m.def*.5));const c=Math.random()<crit();if(c)d=Math.round(d*1.75);
+  if(B.m.undead&&w){if(w.b==='mace')d=Math.round(d*1.3);if(w.fx&&w.fx.includes('slayer'))d=Math.round(d*1.5)}
+  if(!off&&isBow()&&B.m.fly)d=Math.round(d*1.25);
+  hitMonster(d,col||(c?'#ffd34a':null),big||c);let extra='';
+  if(w&&w.fx){if(w.fx.includes('burn')){const f=Math.max(1,Math.round(d*.25));B.m.hp=Math.max(0,B.m.hp-f);fx(String(f),(B.m.sx||320)+34,176,'#ff7a3a');extra+=` +${f} fire`}
+    if(w.fx.includes('leech')){const h=Math.min(maxHP()-S.hp,Math.max(1,Math.round(d*.15)));if(h>0){S.hp+=h;fx('+'+h,320,420,'#9bd36a');extra+=`, +${h} HP`}}}
+  return [d,c,extra]}
+function actAttack(){const bow=isBow();B.noArrow=false;
+  if(bow){if(!hasFx('quiver')){if(S.bag.arrow>0)S.bag.arrow--;else B.noArrow=true}B.arrowT=.3}else{B.slash=.25;if(evaded())return}
+  let [d,c,ex]=strike(1);
+  log(B.noArrow?`Out of arrows! You jab with the bow for ${d}.`:(bow?(c?`Critical shot! ${d} damage${ex}.`:`Your arrow hits for ${d} damage${ex}.`):(c?`Critical hit! ${d} damage${ex}.`:`You strike for ${d} damage${ex}.`)));
+  if(offW()&&B.m.hp>0){const [d2,c2,e2]=strike(1,true);setTimeout(()=>{if(B)B.slash=.25},120);log(`Off-hand ${c2?'critical ':''}strike for ${d2}${e2}.`)}
+  const w=EQ('main');if(w&&w.fx&&w.fx.includes('twin')&&B.m.hp>0&&Math.random()<.2){const [d3]=strike(.7);log(`${w.n} strikes again for ${d3}!`)}
+  hud();after()}
 function evaded(){if(B.m.eva&&Math.random()<B.m.eva){fx('miss',B.m.sx||320,210,'#cfcfcf');log(`The ${B.m.n} darts aside!`);after();return true}return false}
-function actAttack(){B.slash=.25;if(evaded())return;const [d,c]=physical(1);B.slash=.25;hitMonster(d,c?'#ffd34a':null,c);log(c?`Critical hit! ${d} damage.`:`You strike for ${d} damage.`);after()}
+
 function skill(s){
-  if(s==='power'){S.mp-=4;B.slash=.3;if(evaded())return;const [d,c]=physical(1.8);B.slash=.3;hitMonster(d,'#ffb347',true);log(`Power Strike${c?' (critical)':''} deals ${d}!`)}
+  if(s==='power'){S.mp-=4;B.slash=.3;if(isBow())B.arrowT=.3;else if(evaded())return;B.noArrow=false;const [d,c,ex]=strike(1.8,false,'#ffb347',true);log(`${isBow()?'Power Shot':'Power Strike'}${c?' (critical)':''} deals ${d}${ex}!`)}
   if(s==='fire'){S.mp-=5;const d=Math.round(spell()*rnd(.9,1.1)*(B.m.undead?1.5:1));B.fire=.5;hitMonster(d,'#ff7a3a',!!B.m.undead);log(B.m.undead?`Holy fire scorches the undead for ${d}!`:`Fire burns for ${d} damage.`)}
   if(s==='smite'){S.mp-=7;const d=Math.round((atk()*.8+spell()*1.2)*rnd(.9,1.1)*(B.m.undead?1.8:1));B.holy=.6;hitMonster(d,'#ffe9a0',true);log(B.m.undead?`Holy light sears the undead for ${d}!`:`Smite strikes for ${d} damage.`)}
   if(s==='frost'){S.mp-=6;const d=Math.round(spell()*1.15*rnd(.9,1.1));B.frost=.5;hitMonster(d,'#9fe3ff',false);const fr=!B.m.boss&&Math.random()<.35||B.m.boss&&Math.random()<.12;if(fr)B.m.frozen=1;log(`Frostbolt hits for ${d}${fr?' and freezes it solid!':'.'}`)}
@@ -1739,6 +1989,7 @@ function item(k){
   if(k==='smoke'&&(B.m.boss||B.m.noflee)){log('The smoke clears instantly. There is no escaping this foe!');return}
   if(k==='smoke'){S.bag.smoke--;log('You vanish in a puff of smoke.');flee();return}
   if(k==='flask'){S.bag.flask--;B.fire=.5;const d=45+S.lv*2;hitMonster(d,'#ff7a3a',true);log(`The Fire Flask bursts for ${d} damage!`);after();return}
+  if(k==='roast'||k==='stew'){S.bag[k]--;const H=k==='stew'?[70,15]:[30,0];const h=Math.min(maxHP()-S.hp,H[0]),mp=Math.min(maxMP()-S.mp,H[1]);S.hp+=h;S.mp+=mp;fx('+'+h,320,420,'#9bd36a',true);log(`You eat the ${SUP[k].n}. +${h} HP${mp?`, +${mp} MP`:''}.`);after();return}
   if(k==='hipotion'||k==='elixir'){S.bag[k]--;if(k==='hipotion'){const h=Math.min(maxHP()-S.hp,90);S.hp+=h;fx('+'+h,320,420,'#9bd36a',true);log(`The Greater Draught restores ${h} HP.`)}else{const h=Math.min(maxMP()-S.mp,45);S.mp+=h;fx('+'+h+' MP',320,420,'#6aa8ff',true);log(`The Elixir restores ${h} MP.`)}after();return}
   S.bag[k]--;if(k==='potion'){const h=Math.min(maxHP()-S.hp,40);S.hp+=h;fx('+'+h,320,420,'#9bd36a',true);log(`The draught restores ${h} HP.`)}
   else{const h=Math.min(maxMP()-S.mp,20);S.mp+=h;fx('+'+h+' MP',320,420,'#6aa8ff',true);log(`The tonic restores ${h} MP.`)}
@@ -1748,7 +1999,8 @@ function actRun(){if(B.m.boss||B.m.noflee){log('There is no escaping this fight!
 function flee(){B.over=true;B.fled=true;B.busy=false;hud();save();renderActions()}
 function after(){B.menu='main';hud();if(B.m.hp<=0){const al=B.foes.filter(f=>f.hp>0);if(!al.length){win();return}log(`${B.m.n} goes down!`);B.m=al[0]}B.busy=true;renderActions();setTimeout(enemyTurn,750)}
 function enemyTurn(){if(!B||B.over)return;const q=B.foes.filter(f=>f.hp>0);let i=0;
-  const next=()=>{if(!B||B.over)return;if(i>=q.length){B.actor=null;B.busy=false;renderActions();return}const m=q[i++];B.actor=m;enemyAct(m);if(B.over)return;if(q.length>1)setTimeout(next,650);else next()};next()}
+  const next=()=>{if(!B||B.over)return;if(i>=q.length){B.actor=null;if(hasFx('regen')&&S.hp>0){const h=Math.min(maxHP()-S.hp,Math.round(maxHP()*.04));if(h>0){S.hp+=h;fx('+'+h,320,440,'#9bd36a');hud()}}
+    const al=B.foes.filter(f=>f.hp>0);if(!al.length){win();return}if(B.m.hp<=0)B.m=al[0];B.busy=false;renderActions();return}const m=q[i++];B.actor=m;enemyAct(m);if(B.over)return;if(q.length>1)setTimeout(next,650);else next()};next()}
 function enemyAct(m){
   if(m.frozen){m.frozen=0;log(`The ${m.n} is frozen solid and can't move!`);return}
   const sp=Math.random();let mult=1,hits=1,verb='attacks',leech=false;
@@ -1768,6 +2020,9 @@ function enemyAct(m){
   if(m.id==='cknight'&&sp<.25){mult=1.4;verb='bashes you with its shield'}
   if(m.id==='ratking'){if(sp<.22){hits=3;mult=.5;verb='calls the swarm, and rats bite'}else if(sp<.42){leech=true;mult=1.5;verb='sinks plague-ridden teeth in'}}
   if(m.id==='warden'){if(sp<.18&&m.hp<m.maxhp){const h=Math.round(m.maxhp*.1);m.hp=Math.min(m.maxhp,m.hp+h);return skip(`The Bone Warden draws bones from the floor and mends for ${h} HP.`)}if(sp<.45){hits=2;mult=.9;verb='swings both greatswords'}}
+  if(m.id==='dragon'){if(sp<.18){mult=2.1;verb='breathes a torrent of fire'}else if(sp<.34){hits=2;mult=.85;verb='buffets you with its wings'}else if(sp<.42){m.atk+=5;return skip('Vyrmathrax roars and the ground shakes. Its fury grows!')}}
+  if(m.id==='lich'){if(sp<.14&&m.hp<m.maxhp){const h=Math.round(m.maxhp*.08);m.hp=Math.min(m.maxhp,m.hp+h);return skip(`Malgorath feeds on lingering souls and mends ${h} HP.`)}if(sp<.34){leech=true;mult=1.35;verb='casts Soul Drain'}else if(sp<.48){const dr=Math.min(S.mp,ri(8,14));S.mp-=dr;mult=1.1;verb=`withers ${dr} MP away and strikes`}}
+  if(m.id==='sentinel'){if(sp<.2){mult=2.2;verb='fires a beam of starlight'}else if(sp<.32){m.def+=6;return skip('The Sentinel raises its bulwark. Its defense rises!')}else if(sp<.48){hits=3;mult=.55;verb='spins its blades'}}
   if(m.id==='toad'&&sp<.25){mult=1.4;verb='lashes you with its tongue'}
   if(m.id==='mudling'&&sp<.22){mult=1.25;verb='splatters you with mud'}
   if(m.id==='wisp'&&sp<.3){const dr=Math.min(S.mp,ri(4,7));S.mp-=dr;mult=.6;verb=`siphons ${dr} MP and burns you`}
@@ -1778,10 +2033,12 @@ function enemyAct(m){
   if(m.id==='ghoul'&&sp<.25){hits=2;mult=.8;verb='rakes you with both claws'}
   if(m.id==='wolf'){if(sp<.2){m.atk+=3;return skip('Greyfang howls and his eyes blaze. His attack rises!')}if(sp<.45){hits=2;mult=.8;verb='bites twice'}}
   if(m.id==='knight'){if(sp<.2){leech=true;mult=1.1;verb='drains your life'}else if(sp<.42){mult=1.7;verb='cleaves with a cursed blade'}}
-  let total=0;
-  for(let i=0;i<hits;i++){if(Math.random()<dodge())continue;total+=Math.max(1,Math.round(m.atk*mult*rnd(.85,1.15)-defn()*.5))}
+  let total=0,blk=0;
+  for(let i=0;i<hits;i++){if(Math.random()<dodge())continue;let d=Math.max(1,Math.round(m.atk*mult*rnd(.85,1.15)-defn()*.5));if(Math.random()<blockCh()){d=Math.max(1,Math.round(d*.3));blk++}total+=d}
   if(total>0){S.hp-=total;B.pflash=.35;fx('-'+total,320,420,'#ff5a4e',true);log(`The ${m.n} ${verb} for ${total} damage.`);
-    if(leech){const h=Math.round(total/2);m.hp=Math.min(m.maxhp,m.hp+h);log(`It regains ${h} HP.`)}}
+    if(blk)log('Your shield takes most of the blow!');
+    if(leech){const h=Math.round(total/2);m.hp=Math.min(m.maxhp,m.hp+h);log(`It regains ${h} HP.`)}
+    if(hasFx('thorns')&&m.hp>0){const r=Math.max(1,Math.round(total*.25));m.hp=Math.max(0,m.hp-r);fx(String(r),m.sx||320,236,'#ff9a6a');log(`Thorns strike back for ${r}.`)}}
   else log(`You dodge the ${m.n}'s attack!`);
   hud();
   if(S.hp<=0){S.hp=0;hud();B.over=true;B.lost=true;B.busy=false;log('You collapse...');renderActions();return}
@@ -1797,6 +2054,11 @@ function win(){
   if(m.id==='spider'&&S.q.silk==='active'&&Math.random()<.5)got.push('silk');
   if(m.id==='hag'&&S.q.locket==='active'&&!S.loot.locket)got.push('locket');
   if(m.boss){got.push(m.drop);if(!S.bossDown.includes(m.bossId))S.bossDown.push(m.bossId)}
+  const gear=[],src=B.src||B.zone;
+  if(!m.boss){if(Math.random()<(src==='ancient'?.32:.2))gear.push(genItem(randBase(),rollR(src),m.lv+ri(0,1)));const J=JUNK[src];if(J&&Math.random()<.35)got.push(pick(J))}
+  else{const bl=BLOOT[m.bossId]||{};(bl.art||[]).forEach(a=>gear.push(mkArt(a)));for(let i=0;i<(bl.leg||0);i++)gear.push(genItem(randBase(),3,m.lv+1));for(let i=0;i<(bl.epic||0);i++)gear.push(genItem(randBase(),2,m.lv));
+    for(const [k,n] of (bl.mats||[]))for(let i=0;i<n;i++)got.push(k)}
+  for(const it of gear){const full=giveItem(it);log(`${RAR[it.r].n} drop: ${iname(it,1)}${full?' (pack full, sold)':''}`);if(it.r>=3)fx(RAR[it.r].n.toUpperCase()+'!',320,140,RAR[it.r].b,true)}
   for(const k of got)S.loot[k]=(S.loot[k]||0)+1;
   if(got.length)log(`Loot: ${got.map(k=>LOOT[k].n).join(', ')}.`);
   if(!m.boss&&Math.random()<.12){S.bag.potion++;log('It dropped a Healing Draught.')}
@@ -1874,6 +2136,7 @@ function renderBattleInner(dt){
     const ssx=isT&&B.shake>0&&!reduce?Math.sin(T*80)*B.shake*22:0,flp=isA&&B.lunge>0?Math.sin((B.lunge/.3)*Math.PI):0;
     cx.globalAlpha=multi?Math.max(0,f.alpha):Math.max(0,B.alpha);cx.fillStyle='rgba(0,0,0,.25)';ell(fx0,344,(f.fly?46:f.boss?120:78)*fsc,(f.fly?8:f.boss?16:12)*fsc);
     cx.save();cx.translate(fx0+ssx,342+flp*22);const sc=(f.boss?f.bscale:1.35)*fsc*(1+flp*.12);cx.scale(sc,sc);drawMonster(f.id,bob,isT&&B.flash>0,f.v);cx.restore()}
+  if(B.arrowT>0){B.arrowT-=dt;const p=Math.min(1,1-B.arrowT/.3),ax=320+(TX-320)*p,ay=470-230*p,an=Math.atan2(-230,TX-320);cx.globalAlpha=1;cx.save();cx.translate(ax,ay);cx.rotate(an);seg([-34,0,0,0],3,'#8a5a30');cx.fillStyle='#d8dde4';tri(0,-5,0,5,10,0);cx.fillStyle='#e8e0cc';tri(-34,0,-42,-6,-30,0);tri(-34,0,-42,6,-30,0);cx.restore()}
   cx.globalAlpha=1;
   if(B.slash>0){cx.strokeStyle=`rgba(255,255,255,${B.slash*4})`;cx.lineWidth=6;cx.beginPath();cx.arc(TX-20,240,70,-1.2,.3);cx.stroke();cx.beginPath();cx.arc(TX+25,250,64,1.9,3.5);cx.stroke()}
   if(B.frost>0){const p=1-B.frost/.5;for(let i=0;i<14;i++){const a=i/14*Math.PI*2,r=20+p*80;cx.fillStyle=`rgba(190,240,255,${1-p})`;cx.save();cx.translate(TX+Math.cos(a)*r,250+Math.sin(a)*r*.7);cx.rotate(a);cx.fillRect(-8,-2,16,4);cx.restore()}}
