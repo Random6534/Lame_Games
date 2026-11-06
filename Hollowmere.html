@@ -2456,7 +2456,7 @@ function drawMinimap(dt){cx.imageSmoothingEnabled=false;const v=mapView(),{sc,fx
   MBTN=[];const btn=(x,y,lab,f)=>{cx.fillStyle='#3a281a';cx.fillRect(x,y,30,30);cx.strokeStyle='#d4a23c';cx.lineWidth=2;cx.strokeRect(x+1,y+1,28,28);cx.fillStyle='#efe3c4';cx.font='700 20px "Alegreya SC", Georgia, serif';cx.fillText(lab,x+15,y+16);MBTN.push([x,y,30,30,f])};
   btn(fx+fw-36,fy+6,'+',()=>mapZoom(1));btn(fx+fw-36,fy+40,'−',()=>mapZoom(-1));btn(fx+fw-36,fy+74,'◎',()=>{const wp=worldPos();if(wp){MCX=wp[0];MCY=wp[1]}});btn(fx+fw-36,fy+108,'×',()=>{MMODE=0});
   cx.font='700 13px "Alegreya SC", Georgia, serif';cx.fillStyle='#efe3c4';cx.textAlign='center';cx.textBaseline='middle';
-  cx.fillText(`Zoom ×${MZ} · Scroll, +/− or tap to zoom · Drag or arrows to move · M to close`,W/2,H-38);cx.fillStyle='#ff6a5a';cx.fillText('◆ Boss',W/2-130,H-18);cx.fillStyle='#ffb03a';cx.fillText('◆ Elite',W/2-40,H-18);cx.fillStyle='#7ff0ff';cx.fillText('◆ Waystone',W/2+60,H-18);cx.fillStyle='#d79bff';cx.fillText('▣ Dungeon',W/2+165,H-18);cx.fillStyle='#ffffff';cx.fillText('■ You',W/2+255,H-18);cx.textAlign='left';cx.textBaseline='alphabetic'}
+  if(DEV){cx.fillStyle='#7ff0ff';cx.fillText('DEV · Right-click or Shift+click the map to teleport there',W/2,H-58);cx.fillStyle='#efe3c4'}cx.fillText(`Zoom ×${MZ} · Scroll, +/− or tap to zoom · Drag or arrows to move · M to close`,W/2,H-38);cx.fillStyle='#ff6a5a';cx.fillText('◆ Boss',W/2-130,H-18);cx.fillStyle='#ffb03a';cx.fillText('◆ Elite',W/2-40,H-18);cx.fillStyle='#7ff0ff';cx.fillText('◆ Waystone',W/2+60,H-18);cx.fillStyle='#d79bff';cx.fillText('▣ Dungeon',W/2+165,H-18);cx.fillStyle='#ffffff';cx.fillText('■ You',W/2+255,H-18);cx.textAlign='left';cx.textBaseline='alphabetic'}
 function openMap(){if(MMODE){MMODE=0;return}MMODE=2;MZ=1;MCX=WW/2;MCY=WH/2;held.length=0}
 function canvasPt(e){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
 cv.addEventListener('wheel',e=>{if(MMODE!==2)return;e.preventDefault();const [x,y]=canvasPt(e);mapZoom(e.deltaY<0?1:-1,x,y)},{passive:false});
@@ -2465,7 +2465,7 @@ cv.addEventListener('pointerdown',e=>{if(MMODE!==2)return;const [x,y]=canvasPt(e
 cv.addEventListener('pointermove',e=>{if(MMODE!==2||!MDRAG)return;const [x,y]=canvasPt(e),v=mapView(),dx=x-MDRAG.x,dy=y-MDRAG.y;MDRAG.moved=Math.max(MDRAG.moved,Math.abs(dx)+Math.abs(dy));
   if(MDRAG.moved>4){MCX=MDRAG.cx0-dx/v.sc;MCY=MDRAG.cy0-dy/v.sc;cv.style.cursor='grabbing'}});
 const endDrag=e=>{if(!MDRAG)return;const d=MDRAG;MDRAG=null;cv.style.cursor='';try{cv.releasePointerCapture(d.id)}catch(_){}if(MMODE!==2||d.moved>4)return;
-  const [x,y]=canvasPt(e);for(const [bx,by,bw,bh,f] of MBTN)if(x>=bx&&x<=bx+bw&&y>=by&&y<=by+bh){f();return}const v=mapView();if(x>v.fx&&x<v.fx+v.fw&&y>v.fy&&y<v.fy+v.fh)mapZoom(MZ>=8?-8:1,x,y)};
+  if(e.button===2)return;const [x,y]=canvasPt(e);if(DEV&&e.shiftKey){tpMapClick(x,y);return}for(const [bx,by,bw,bh,f] of MBTN)if(x>=bx&&x<=bx+bw&&y>=by&&y<=by+bh){f();return}const v=mapView();if(x>v.fx&&x<v.fx+v.fw&&y>v.fy&&y<v.fy+v.fh)mapZoom(MZ>=8?-8:1,x,y)};
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',()=>{MDRAG=null;cv.style.cursor=''});
 let FLOCK=null,flockWait=6;
 function ambient(m,x0,x1,y0,y1,night,dt,camX,camY){
@@ -3686,7 +3686,7 @@ addEventListener('keydown',e=>{
   const d=KEYDIR[e.code];if(d){e.preventDefault();if(!held.includes(d))held.push(d);return}
   if(e.code==='Space'||e.code==='Enter'){e.preventDefault();interact()}
   if(e.code==='KeyX'){e.preventDefault();attack()}
-  if(e.code==='KeyC')openStats();if(e.code==='KeyB')openBag();if(e.code==='KeyQ')openQuests();if(e.code==='KeyM')openMap();
+  if(e.code==='KeyC')openStats();if(e.code==='KeyB')openBag();if(e.code==='KeyQ')openQuests();if(e.code==='KeyM')openMap();if(DEV&&e.code==='KeyT'){e.preventDefault();openTeleport()}
 });
 addEventListener('keyup',e=>{const d=KEYDIR[e.code];if(d){const i=held.indexOf(d);if(i>=0)held.splice(i,1)}});
 addEventListener('blur',()=>held.length=0);
@@ -3695,6 +3695,43 @@ document.querySelectorAll('.dpad button').forEach(b=>{const d=b.dataset.d;
   ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{const i=held.indexOf(d);if(i>=0)held.splice(i,1)}))});
 $('#aBtn').addEventListener('click',interact);$('#xBtn').addEventListener('click',attack);
 $('#bStats').addEventListener('click',openStats);$('#bBag').addEventListener('click',openBag);$('#bQuests').addEventListener('click',openQuests);$('#bMap').addEventListener('click',openMap);
+
+
+/* ---- DEV TOOLS (only active when the link ends in ?dev) ---- */
+const DEV=/[?&]dev\b/i.test(location.search);
+let TPBACK=null;
+function tpFree(m,x,y){const M=MAPS[m];for(let r=0;r<16;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
+  const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=M.w||ny>=M.h)continue;if(!terrainSolid(m,nx,ny))return [nx,ny]}return [x,y]}
+function teleport(m,x,y,label){if(!MAPS[m]||scene!=='explore')return;TPBACK=[S.map,P.x,P.y];const [tx,ty]=tpFree(m,Math.round(x),Math.round(y));MMODE=0;closeModal(true);
+  fade(()=>{S.map=m;placePlayer(tx,ty,'down');if(m==='world')WPOS=[tx,ty];MOBGRACE=T+4;save();checkArea();hud()},
+    ()=>toast(`Teleported${label?' to '+label:''} · ${MAPS[m].name||m} (${tx}, ${ty})`),true)}
+function tpMapClick(x,y){const v=mapView();if(x<v.fx||x>v.fx+v.fw||y<v.fy||y>v.fy+v.fh)return;teleport('world',(x-v.ox)/v.sc,(y-v.oy)/v.sc,'map point')}
+function tpTargets(){const L=[],seen=new Set(),add=(g,n,m,x,y)=>{if(!MAPS[m])return;const k=m+'|'+n;if(seen.has(k))return;seen.add(k);L.push({g,n,m,x,y})};
+  for(const q of MAPLBL())add('Places',q[0],'world',q[1],q[2]);
+  for(const w of WAYS)add('Waystones',w.n,'world',w.x,w.y+1);
+  for(const b of BUILDINGS)if(b.to)add('Buildings',MAPS[b.to.map]?MAPS[b.to.map].name||b.to.map:b.to.map,b.to.map,b.to.x,b.to.y);
+  for(const k in MAPS){const W=MAPS[k].warps;if(W)for(const key in W){const t=W[key];if(t&&t.map!=='world'&&MAPS[t.map])add(DUNGS.some(d=>d.k===t.map)?'Dungeons':'Buildings',MAPS[t.map].name||t.map,t.map,t.x,t.y)}}
+  for(const b of BOSSES)add('Bosses',b.n+(b.elite?' (elite)':''),b.map||'world',b.x,b.y+1);
+  return L}
+function openTeleport(){if(!DEV||scene!=='explore')return;MMODE=0;const L=tpTargets(),groups=['Places','Waystones','Buildings','Dungeons','Bosses'];
+  modal(()=>{let h=`<h2>Teleport</h2><p class="sub">You are in ${MAPS[S.map].name||S.map} at (${P.x}, ${P.y}). On the map (M), right-click or Shift+click anywhere to jump there.</p>
+    <input id="tpq" placeholder="Search places…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px 10px;font:inherit;margin:6px 0">`;
+    if(TPBACK)h+=`<p><button class="btn" data-a="back">↩ Back to previous spot</button></p>`;
+    for(const g of groups){const it=L.map((t,i)=>[t,i]).filter(([t])=>t.g===g);if(!it.length)continue;
+      h+=`<h3>${g}</h3><div class="tpl" style="display:flex;flex-wrap:wrap;gap:6px">`+it.map(([t,i])=>`<button class="btn sm tpb" data-a="tp:${i}" data-n="${t.n.toLowerCase().replace(/"/g,'')}">${t.n}</button>`).join('')+`</div>`}
+    return h+`<div class="mfoot"><button class="btn" data-a="close">Close</button></div>`},
+  a=>{if(a==='back'&&TPBACK){teleport(TPBACK[0],TPBACK[1],TPBACK[2],'previous spot');return false}
+    if(a.startsWith('tp:')){const t=L[+a.slice(3)];teleport(t.m,t.x,t.y,t.n);return false}});
+  const box=$('#mbox');box.classList.add('wide');const q=box.querySelector('#tpq');q.focus();
+  q.oninput=()=>{const v=q.value.toLowerCase().trim();box.querySelectorAll('.tpb').forEach(b=>b.style.display=b.dataset.n.includes(v)?'':'none');
+    box.querySelectorAll('.tpl').forEach(d=>{const any=[...d.children].some(b=>b.style.display!=='none');d.style.display=any?'flex':'none';d.previousElementSibling.style.display=any?'':'none'})}}
+function devGear(){initGear();const want=['Dawnfire','Bulwark of Ages','Godforged Plate','Crown of the Undying','Stormstriders'];
+  if(!want.every(n=>S.inv.some(i=>i.n===n)))grantUltimate();
+  for(const n of want){const it=S.inv.find(i=>i.n===n);if(it)equip(it.u)}
+  S.hp=maxHP();S.mp=maxMP();save();hud()}
+if(DEV){devGear();$('#bMap').insertAdjacentHTML('afterend','<button class="btn sm" id="bTP" title="Dev teleport (T)">Teleport</button>');$('#bTP').addEventListener('click',openTeleport);
+  cv.addEventListener('contextmenu',e=>{if(MMODE!==2)return;e.preventDefault();const [x,y]=canvasPt(e);tpMapClick(x,y)});
+  setTimeout(()=>toast('Dev mode: ultimate gear equipped. Press T to teleport.'),900)}
 
 /* ---- NPC schedules ---- */
 const HT=(x,y)=>[OX+x,OY+y],AC=(x,y)=>[CX+x,CY+y];
