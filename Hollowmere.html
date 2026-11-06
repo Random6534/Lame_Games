@@ -277,7 +277,16 @@ function makeTown(){
   }
   return {ground:G.map(r=>r.join('')),obj:O.map(r=>r.join(''))};
 }
-const OFX=200,OFY=110,WW=720,WH=400,OX=98+OFX,OY=74+OFY,TW=44,TH=32,CX=252+OFX,CY=66+OFY,CW=62,CH=48;
+const OFX0=200,OFY0=110,WS=1.5,OFX=Math.round(OFX0*WS),OFY=Math.round(OFY0*WS),WW=OFX*2+320,WH=OFY*2+180,DX=OFX-OFX0,DY=OFY-OFY0,OX=98+OFX,OY=74+OFY,TW=44,TH=32,CX=252+OFX,CY=66+OFY,CW=62,CH=48;
+/* World size: the lands around the old Hollowmere/Aldermoor core were stretched by WS.
+   MX/MY convert an old (720x400) world coordinate into the new world. MP keeps a point
+   at the same offset from the place it belongs to (anchor), so details stay attached. */
+const MX=x=>x<OFX0?Math.round(x*WS):x<OFX0+320?x+DX:Math.round(OFX+320+(x-OFX0-320)*WS);
+const MY=y=>y<OFY0?Math.round(y*WS):y<OFY0+180?y+DY:Math.round(OFY+180+(y-OFY0-180)*WS);
+let ANCH=[];
+function MP(x,y,r=18){let b=null,bd=r;for(const a of ANCH){if(!a.ox)continue;const d=Math.hypot(x-a.ox,y-a.oy);if(d<=bd){bd=d;b=a}}
+  return b?[b.nx+(x-b.ox),b.ny+(y-b.oy)]:[MX(x),MY(y)]}
+const MPo=(x,y)=>{const [a,b]=MP(x,y);return {x:a,y:b}};
 function vnoise(x,y,sc,k=99){const gx=x/sc,gy=y/sc,ix=Math.floor(gx),iy=Math.floor(gy),fx=gx-ix,fy=gy-iy,sm=t=>t*t*(3-2*t);
   const a=hash(ix,iy,k),b=hash(ix+1,iy,k),c=hash(ix,iy+1,k),d=hash(ix+1,iy+1,k),u=sm(fx),v=sm(fy);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
 const ZONE=[];
@@ -339,11 +348,11 @@ const PLACES=[
   {n:"Temple of Ra'Khet",x:575,y:245,r:10,b:'temple'},{n:'Leviathan Bonefield',x:655,y:172,r:9,b:'leviathan'},{n:'Mirage Pools',x:690,y:70,r:9,b:'mirage'},{n:'Banu Zahir Encampment',x:600,y:60,r:9,b:'nomads'},{n:'Glass Dunes',x:630,y:310,r:8,b:'glass'},
   {n:'Khaz Dural',x:230,y:345,r:10,b:'dwarf'},{n:'Ember Grove',x:400,y:312,r:9,b:'embergrove'},{n:'Brimstone Pits',x:500,y:330,r:8,b:'brimstone'},{n:'Basalt Steps',x:310,y:382,r:7,b:'basalt'},{n:'Dragonbone Ridge',x:200,y:386,r:9,b:'ridge'}];
 PLACES.push(
-  {n:'Stormhaven, the Free Port',x:116,y:220,r:19,b:'city',city:'stormhaven'},
-  {n:'Sunspire, City of the Golden Veil',x:520,y:240,r:19,b:'city',city:'sunspire'},
-  {n:'Emberwatch, the Cinder March',x:365,y:340,r:19,b:'city',city:'emberwatch'},
-  {n:'Mirewatch, the Reed-Crowned City',x:90,y:120,r:19,b:'city',city:'mirewatch'},
-  {n:'Ironhollow, City Beneath the Mountain',x:260,y:280,r:19,b:'city',city:'ironhollow'},
+  {n:'Stormhaven, the Free Port',x:116,y:220,r:27,b:'city',city:'stormhaven'},
+  {n:'Sunspire, City of the Golden Veil',x:520,y:240,r:27,b:'city',city:'sunspire'},
+  {n:'Emberwatch, the Cinder March',x:365,y:340,r:27,b:'city',city:'emberwatch'},
+  {n:'Mirewatch, the Reed-Crowned City',x:90,y:120,r:27,b:'city',city:'mirewatch'},
+  {n:'Ironhollow, City Beneath the Mountain',x:260,y:280,r:27,b:'city',city:'ironhollow'},
   {n:'Blackwater Fort',x:112,y:348,r:12,b:'fort',f:'pirate'},{n:'Blackwater Grotto',x:80,y:176,r:5,b:'dungeon',d:'grotto'},{n:"Black Mara's Camp",x:170,y:194,r:5,b:'hwy'},
   {n:'Frostreaver Warcamp',x:165,y:22,r:12,b:'fort',f:'reaver'},{n:'Frostmaw Caverns',x:455,y:76,r:5,b:'dungeon',d:'icecave'},{n:"Halvard's Toll",x:330,y:60,r:5,b:'hwy'},
   {n:'Fort Scorpion',x:640,y:22,r:12,b:'fort',f:'raider'},{n:'Scarab Hive',x:610,y:228,r:5,b:'dungeon',d:'tomb'},{n:"Jasim's Ambush",x:560,y:193,r:5,b:'hwy'},
@@ -392,6 +401,36 @@ const CITYBUILD=[
   {city:'ironhollow',x:243,y:286,w:7,h:6,door:246,kind:'inn',roof:'thatch',sign:'STONE REST',msg:'The inn is full of miners sleeping off their shifts.'},
   {city:'ironhollow',x:267,y:286,w:7,h:6,door:270,kind:'house',roof:'slate',msg:'A clan family shares a meal behind the stone shutters.'}
 ];
+/* City styles, house flavour text and the shared tables for the harbor and mountains */
+const CITYSTY={
+  stormhaven:{ward:'.',core:'u',plaza:'u',apron:'=',lane:'=',tree:'T',statue:'&',wide:1,noSouth:1,stoneP:.2,stc:'#b3ab9b',
+    roofs:[['tile','#a9553a'],['tile','#b4603c'],['slate','#5d6874'],['tile','#9a4a34'],['thatch',null],['slate','#4f6478']],pls:['#e8dab8','#f0e6cc','#dccfae','#ece2d2'],sh:['#2f5f8a','#3f6b35','#8b2e24','#4a6a8a']},
+  sunspire:{ward:'s',core:'u',plaza:'u',apron:'s',lane:'=',tree:'5',statue:'0',stoneP:.35,stc:'#d6c49a',
+    roofs:[['tile','#c0683e'],['tile','#b8743f'],['tile','#a85a3a'],['slate','#7d6a58'],['tile','#cf7a48']],pls:['#f4ecd8','#efe3c4','#f2e2c0','#e8d6b0'],sh:['#2f6f8a','#3a8a7a','#a8452a','#c99a2e']},
+  emberwatch:{ward:'g',core:'u',plaza:'u',apron:'a',lane:'=',tree:'T',statue:'&',stoneP:.55,stc:'#8f897d',
+    roofs:[['slate','#4e535b'],['slate','#5c5a58'],['tile','#7a3a2c'],['slate','#3f4248']],pls:['#d4c6aa','#c8b89a','#dacdb2'],sh:['#5a2a1e','#3a3632','#6b4426']},
+  mirewatch:{ward:'h',core:'u',plaza:'u',apron:'h',lane:'=',tree:'Y',statue:'&',stoneP:.1,stc:'#a8a090',
+    roofs:[['thatch',null],['thatch','#9c7a48'],['thatch','#8f8a52'],['slate','#56625a']],pls:['#d9caa0','#cdbf96','#e2d4ac'],sh:['#3f6b35','#5a6b2a','#6b4426']},
+  ironhollow:{ward:'g',core:'u',plaza:'u',apron:'g',lane:'=',tree:'I',statue:'&',stoneP:.7,stc:'#9c968a',
+    roofs:[['slate','#5a616b'],['slate','#6b6f74'],['tile','#8a4a34'],['slate','#4c535c']],pls:['#cfc6b4','#c4bba8','#d6cebc'],sh:['#4a3220','#3a3a48','#6b2a1e']}};
+const CITYMSG0=['Locked. Someone inside is snoring like a saw.','A family is at supper. They wave you off politely.','The door is barred. A dog barks once, then thinks better of it.','Nobody answers your knock.','Locked. A kettle is whistling inside.','A note on the door: "Gone to market. Back by dusk."','Someone inside is practicing the lute. Badly.','An old woman peers through the shutters and shakes her head.','Children giggle behind the door, then go very quiet.','Locked. It smells of fresh bread.'];
+const CITYMSG={stormhaven:[...CITYMSG0,'Nets and oars hang by the door. Nobody home.','Locked. The whole house smells of tar and salt fish.','A sailor\'s wife says her man is "somewhere past the horizon".'],
+  sunspire:[...CITYMSG0,'Cool air and incense drift through the shutters.','A merchant is counting coins. He does not open the door.','Locked. A caged songbird sings inside.'],
+  emberwatch:[...CITYMSG0,'The smell of soot and hot iron. Nobody answers.','A miner is asleep on the doorstep. You let him be.','Locked. Ash has drifted against the door.'],
+  mirewatch:[...CITYMSG0,'The floorboards creak on their stilts. Nobody home.','A reed-weaver hums inside and ignores you.','Locked. Frogs croak from the rain barrel.'],
+  ironhollow:[...CITYMSG0,'Stone shutters, firmly closed.','A dwarf yells "Not today!" through the door.','Locked. Someone is hammering in the cellar.']};
+const NPCSPOT=new Set(['0,-1','0,-2','1,-1','-8,1','-6,2','-7,2','8,1','7,2','8,2','10,2','-8,2','9,2']);
+const HARBOR={};function setHarbor(cx,cy){Object.assign(HARBOR,{cx,cy,qy0:cy+19,qy1:cy+22,bx0:cx-32,bx1:cx+2,by0:cy+24,by1:cy+42,cy0:cy+31,cy1:cy+38,piers:[cx-24,cx-15,cx-6],berths:[cx-18.5,cx-9.5,cx-.5]})}
+const MOUNTS=[{n:'Hollow Tor',x:362,y:100,R:17,pal:'green',L:5,il:8,g:120},{n:'Frostfang Peak',x:204,y:26,R:21,pal:'snow',L:6,il:17,g:320},
+  {n:'Sunbreak Mesa',x:680,y:30,R:19,pal:'mesa',L:5,il:20,g:380,mesa:1},{n:'Greymantle',x:434,y:238,R:17,pal:'grey',L:6,il:14,g:240},
+  {n:'Ashen Spire',x:528,y:298,R:15,pal:'basalt',L:6,il:22,g:420},{n:'Stormcrag',x:58,y:28,R:19,pal:'heath',L:6,il:12,g:200},{n:'Mount Durn',x:262,y:236,R:16,pal:'grey',L:6,il:15,g:260}];
+const MH=new Uint8Array(WW*WH),MI=new Uint8Array(WW*WH);
+const MPAL={green:{lo:['#6a8a44','#7b9a50','#8fac62'],hi:['#8e8b80','#a5a297','#bcb9ae'],face:'#6d675c',snow:9,trail:'#c2ad84'},
+  snow:{lo:['#8a9298','#9fa7ad','#b5bcc2'],hi:['#cdd6dc','#e2e9ee','#f6f9fb'],face:'#646c74',snow:.55,trail:'#cfc7b6'},
+  mesa:{lo:['#a8603a','#ba7246','#c98654'],hi:['#c88a58','#d89e6a','#e6b47e'],face:'#8a4428',snow:9,trail:'#e4c690',strata:1},
+  grey:{lo:['#77786a','#87887a','#97978a'],hi:['#9d9b93','#b2b0a8','#c6c4bc'],face:'#5c5a54',snow:.84,trail:'#bcac86'},
+  basalt:{lo:['#463e40','#524a4c','#5f5759'],hi:['#3a3233','#463e3f','#544b4c'],face:'#231e1f',snow:9,trail:'#76695f',glow:1},
+  heath:{lo:['#6c7844','#7a8650','#8a955e'],hi:['#8f8d84','#a6a49b','#bebbb3'],face:'#57544c',snow:.82,trail:'#c0ac84'}};
 const LANDMARKS=[{c:'9',x:480,y:88},{c:'&',x:262,y:38},{c:'Z',x:420,y:96},{c:'&',x:650,y:250},{c:'0',x:645,y:256},{c:'0',x:655,y:256},{c:'0',x:560,y:118},{c:'0',x:566,y:122},
   {c:'^',x:440,y:330},{c:'^',x:250,y:384},{c:'^',x:600,y:318},{c:'0',x:466,y:362},{c:'0',x:474,y:366},{c:'0',x:470,y:372},{c:'0',x:480,y:360}];
 const ELITES=[
@@ -656,11 +695,33 @@ function makeOld(){const WW=320,WH=180,OX=98,OY=74,CX=252,CY=66,ZONE=[];
   const cs=makeCastle();for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){G[CY+y][CX+x]=cs.ground[y][x];O[CY+y][CX+x]=cs.obj[y][x];ZONE[CY+y][CX+x]=6}
   return {G,O,Z:ZONE};
 }
-function makeWorld(){const old=makeOld();
+/* Spread the new lands over the bigger world, give each city its own open ground,
+   and push any landmark that would land on a city, the harbor or Saltmere out of the way. */
+const CITYPOS={stormhaven:[116,352],sunspire:[656,300],emberwatch:[465,420],mirewatch:[135,175],ironhollow:[250,382]};
+const CAMPS0=[[334,80],[300,322],[140,190],[608,166]];
+function remapWorld(){
+  for(const p of PLACES){p.ox=p.x;p.oy=p.y;if(p.city){[p.x,p.y]=CITYPOS[p.city]}else{p.x=p.x===0?0:MX(p.x);p.y=MY(p.y)}}
+  const cities=PLACES.filter(p=>p.city),sm=PLACES.find(p=>p.city==='stormhaven');
+  const boxes=[...cities.map(c=>[c.x-36,c.y-28,c.x+37,c.y+27,c.x,c.y]),[sm.x-40,sm.y+16,sm.x+8,sm.y+48,sm.x-16,sm.y+32],[0,sm.y+28,sm.x-30,sm.y+41,sm.x-60,sm.y+34],[0,205+DY,112,257+DY,40,231+DY]];
+  const free=(x,y,r)=>!boxes.some(b=>x+r>=b[0]&&x-r<=b[2]&&y+r>=b[1]&&y-r<=b[3]);
+  const push=(o,r)=>{if(!o.x||free(o.x,o.y,r))return;const b=boxes.find(b=>o.x+r>=b[0]&&o.x-r<=b[2]&&o.y+r>=b[1]&&o.y-r<=b[3]);
+    let dx=o.x-b[4],dy=o.y-b[5];const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;let x=o.x,y=o.y;for(let i=0;i<120&&!free(Math.round(x),Math.round(y),r);i++){x+=dx;y+=dy}
+    o.x=Math.max(r+3,Math.min(WW-r-4,Math.round(x)));o.y=Math.max(r+3,Math.min(WH-r-4,Math.round(y)))};
+  for(const p of PLACES)if(!p.city)push(p,p.r+2);
+  ANCH=[...PLACES.map(p=>({ox:p.ox,oy:p.oy,nx:p.x,ny:p.y})),...NBOSS.map(b=>({ox:b.x,oy:b.y,nx:b.x?MX(b.x):0,ny:MY(b.y)})),
+    ...MOUNTS.map(m=>({ox:m.x,oy:m.y,nx:MX(m.x),ny:MY(m.y)})),...CAMPS0.map(([x,y])=>({ox:x,oy:y,nx:MX(x),ny:MY(y)}))];
+  for(const b of NBOSS){b.x=b.x?MX(b.x):0;b.y=MY(b.y)}for(const m of MOUNTS){m.x=MX(m.x);m.y=MY(m.y)}
+  const mp=o=>{const ox=o.x;[o.x,o.y]=MP(o.x,o.y);if(!ox)o.x=0;return o.x-ox};
+  for(const s of NSITES)mp(s);for(const R of NEWRELIQ){R.v3=R.x+','+R.y;mp(R)}for(const q of CACHES)mp(q);for(const L of LANDMARKS)mp(L);for(const e of ELITES)mp(e);
+  for(const w of WAYS)if(w.id!=='hm'&&w.id!=='al')mp(w);for(const g of GRIMS)if(g.id!=='drain')mp(g);
+  for(const b of EXTRAB){const d=mp(b);b.door+=d}
+  for(const R of NEWRELIQ)push(R,3);for(const g of GRIMS)if(g.id!=='drain')push(g,4);for(const q of CACHES)push(q,2);for(const L of LANDMARKS)push(L,3);for(const e of ELITES)push(e,8);
+  setHarbor(sm.x,sm.y)}
+function makeWorld(){remapWorld();const old=makeOld();
   for(const s of SITES){s.x+=OFX;s.y+=OFY}for(const R of RELIQ){R.ox=R.x;R.oy=R.y;R.x+=OFX;R.y+=OFY}for(const b of BOSSES){b.x+=OFX;b.y+=OFY}
   {const so={...SIGNS};for(const k in SIGNS)delete SIGNS[k];for(const k in so){const [x,y]=k.split(',').map(Number);SIGNS[(x+OFX)+','+(y+OFY)]=so[k]}}
-  const tq=NBOSS[1];tq.x=shoreX(200)+7;NSITES[1].x=tq.x;const isl=GRIMS.find(g=>g.id==='renew');isl.x=Math.max(5,shoreX(300)-12);NSITES[8].x=isl.x;
-  for(const st of NSITES){if(st.n==='Saltmere')st.x=shoreX(230)+30;if(st.n==='Gull Point Lighthouse')st.x=shoreX(158)+4;if(st.n==='Wreck of the Merry Widow')st.x=shoreX(274)+4;if(st.n==='Snapjaw Cove')st.x=shoreX(262)+7}
+  const tq=NBOSS[1];tq.x=shoreX(tq.y)+7;NSITES[1].x=tq.x;const isl=GRIMS.find(g=>g.id==='renew');isl.x=Math.max(5,shoreX(isl.y)-12);NSITES[8].x=isl.x;
+  for(const st of NSITES){if(st.n==='Saltmere')st.x=shoreX(st.y)+30;if(st.n==='Gull Point Lighthouse')st.x=shoreX(st.y)+4;if(st.n==='Wreck of the Merry Widow')st.x=shoreX(st.y)+4;if(st.n==='Snapjaw Cove')st.x=shoreX(st.y)+7}
   const G=[],O=[];for(let y=0;y<WH;y++){G.push(Array(WW).fill('.'));O.push(Array(WW).fill(' '));ZONE.push(new Uint8Array(WW))}
   const X1=OFX+320,Y1=OFY+180,BASE=['.','.','d','M','g','.','.','.'];
   for(let y=0;y<WH;y++)for(let x=0;x<WW;x++){
@@ -678,22 +739,22 @@ function makeWorld(){const old=makeOld();
     else if(z===10){G[y][x]=vnoise(x,y,4,231)>.5?'D':'s';if(h<.022)O[y][x]='2';else if(h<.03)O[y][x]='4';else if(h<.042)O[y][x]='R'}
     else{G[y][x]=vnoise(x,y,4,241)>.55?'v':'h';if(h<.03)O[y][x]='R';else if(h<.055&&G[y][x]==='h')O[y][x]='T'}}
   // lava river across the wastes
-  for(let x=60;x<WW-4;x++){const ly=Math.round(350+Math.sin(x/23)*9+Math.sin(x/7)*2);if(ZONE[ly][x]!==9)continue;for(const yy of [ly,ly+1]){G[yy][x]='l';O[yy][x]=' '}}
+  for(let x=60;x<WW-4;x++){const ly=Math.round(MY(350)+Math.sin(x/23)*9+Math.sin(x/7)*2);if(ZONE[ly][x]!==9)continue;for(const yy of [ly,ly+1]){G[yy][x]='l';O[yy][x]=' '}}
   // frozen lake
-  for(let y=30;y<62;y++)for(let x=400;x<470;x++){const d=((x-435)/26)**2+((y-46)/11)**2+(vnoise(x,y,4,261)-.5)*.5;if(d<1&&ZONE[y][x]===8){G[y][x]='i';O[y][x]=' '}}
+  {const fx=MX(435),fy=MY(46);for(let y=fy-16;y<fy+16;y++)for(let x=fx-35;x<fx+35;x++){const d=((x-fx)/26)**2+((y-fy)/11)**2+(vnoise(x,y,4,261)-.5)*.5;if(d<1&&ZONE[y][x]===8){G[y][x]='i';O[y][x]=' '}}}
   const clear=(cx0,cy0,r,g)=>{for(let y=cy0-r;y<=cy0+r;y++)for(let x=cx0-r;x<=cx0+r;x++)if(y>=0&&x>=0&&y<WH&&x<WW&&(x-cx0)**2+(y-cy0)**2<=r*r+1){O[y][x]=' ';if(g)G[y][x]=g}};
   const road=(x,y)=>{if('wol'.includes(G[y][x]))G[y][x]='B';else G[y][x]=ZONE[y][x]===2?'~':'=';O[y][x]=' '};
   const sign=(x,y,title,text)=>{O[y][x]='P';if('wolB=~'.includes(G[y][x]))G[y][x]='.';SIGNS[x+','+y]=[title,text]};
   // oasis
-  for(let y=140;y<162;y++)for(let x=585;x<616;x++){const d=((x-600)/8)**2+((y-150)/5)**2+(vnoise(x,y,3,271)-.5)*.4;if(d<1){G[y][x]='w';O[y][x]=' '}else if(d<2.2){G[y][x]='.';O[y][x]=hash(x,y,272)<.12?'5':' '}}
+  const OAX=MX(600),OAY=MY(150);for(let y=OAY-10;y<OAY+12;y++)for(let x=OAX-15;x<OAX+16;x++){const d=((x-OAX)/8)**2+((y-OAY)/5)**2+(vnoise(x,y,3,271)-.5)*.4;if(d<1){G[y][x]='w';O[y][x]=' '}else if(d<2.2){G[y][x]='.';O[y][x]=hash(x,y,272)<.12?'5':' '}}
   // roads into the new lands
-  for(let x=shoreX(199)+5;x<OFX+2;x++){road(x,OY+15);road(x,OY+16)}
-  for(let y=26;y<OFY+2;y++){const tx=OX+21+Math.round(Math.sin(y/9)*3);road(tx,y);road(tx+1,y)}
-  for(let x=306;x<=OX+22;x++){road(x,26);road(x,27)}
-  for(let y=OFY+178;y<=368;y++){const tx=OX+21+Math.round(Math.sin(y/8)*3);road(tx,y);road(tx+1,y)}
-  for(let x=OX+21;x<=372;x++){road(x,368);road(x,369)}
-  for(let x=CX+CW;x<=672;x++){const ty=OY+15+Math.round(Math.sin(x/11)*2);road(x,ty);road(x,ty+1)}
-  for(let y=158;y<=OY+15;y++){road(600,y);road(601,y)}
+  for(let x=shoreX(OY+15)+5;x<OFX+2;x++){road(x,OY+15);road(x,OY+16)}
+  for(let y=MY(26);y<OFY+2;y++){const tx=OX+21+Math.round(Math.sin(y/9)*3);road(tx,y);road(tx+1,y)}
+  for(let x=MX(306);x<=OX+22;x++){road(x,MY(26));road(x,MY(26)+1)}
+  for(let y=OFY+178;y<=MY(368);y++){const tx=OX+21+Math.round(Math.sin(y/8)*3);road(tx,y);road(tx+1,y)}
+  for(let x=OX+21;x<=MX(372);x++){road(x,MY(368));road(x,MY(368)+1)}
+  for(let x=CX+CW;x<=MX(672);x++){const ty=OY+15+Math.round(Math.sin(x/11)*2);road(x,ty);road(x,ty+1)}
+  for(let y=OAY+8;y<=OY+15;y++){road(OAX,y);road(OAX+1,y)}
   // Distinct boss lairs: each major boss has a landmark built for its theme.
   for(const b of NBOSS){const fl=b.id==='ignarax'?'a':b.id==='titan'?'*':b.id==='pharaoh'?'s':'h';
     for(let y=b.y-10;y<=b.y+10;y++)for(let x=b.x-11;x<=b.x+11;x++){if(x<2||y<2||x>=WW-2||y>=WH-2)continue;const d=Math.hypot(x-b.x,y-b.y);if(d>10)continue;O[y][x]=' ';G[y][x]=d<6?'u':fl}
@@ -716,20 +777,20 @@ function makeWorld(){const old=makeOld();
     for(let a=0;a<8;a++){const px=b.x+Math.round(Math.cos(a/8*Math.PI*2)*4),py=b.y+Math.round(Math.sin(a/8*Math.PI*2)*4);if(a%2&&O[py][px]===' ')O[py][px]='p'}
   }
   // Faction camps are working encampments, with palisades, lookout posts and supply yards.
-  for(const [cx0,cy0] of [[334,80],[300,322],[140,190],[608,166]]){
+  for(const [cx0,cy0] of CAMPS0.map(([x,y])=>[MX(x),MY(y)])){
     clear(cx0,cy0,7,null);for(let y=cy0-6;y<=cy0+6;y++)for(let x=cx0-7;x<=cx0+7;x++){if(x<1||y<1||x>=WW-1||y>=WH-1)continue;if(Math.max(Math.abs(x-cx0),Math.abs(y-cy0))===6&&!(y===cy0+6&&Math.abs(x-cx0)<=1))O[y][x]='F';if('wl'.includes(G[y][x]))G[y][x]=['*','a','s','h'][ZONE[y][x]-8]||'.'}
     O[cy0][cx0]='j';O[cy0-3][cx0-4]='N';O[cy0-3][cx0+4]='N';O[cy0+2][cx0-4]='N';O[cy0+2][cx0+4]='N';O[cy0-1][cx0-2]='l';O[cy0-1][cx0+2]='l';O[cy0+1][cx0-5]='b';O[cy0+1][cx0+5]='x';O[cy0-6][cx0-6]='Z';O[cy0-6][cx0+6]='Z';O[cy0-6][cx0]='+';
   }
   // ---- named places in the new lands ----
   {const fl=(x,y)=>['*','a','s','h'][ZONE[y][x]-8]||'.',ok=(x,y)=>x>1&&y>1&&x<WW-2&&y<WH-2;
-   const put=(x,y,ch)=>{if(ok(x,y)&&!'wlo'.includes(G[y][x]))O[y][x]=ch};
+   const put=(x,y,ch)=>{if(ok(x,y)&&!'wlo'.includes(G[y][x])&&!'HU'.includes(O[y][x]))O[y][x]=ch};
    const disc=(cx0,cy0,r,g,keepW)=>{for(let y=cy0-r;y<=cy0+r;y++)for(let x=cx0-r;x<=cx0+r;x++){if(!ok(x,y)||Math.hypot(x-cx0,y-cy0)>r+.3)continue;O[y][x]=' ';if(keepW&&G[y][x]==='w')continue;G[y][x]=g||fl(x,y)}};
    const ring=(cx0,cy0,r,ch,p=1,gap=1)=>{for(let a=0;a<360;a+=360/(r*7)){const x=Math.round(cx0+Math.cos(a*Math.PI/180)*r),y=Math.round(cy0+Math.sin(a*Math.PI/180)*r);if((Math.abs(x-cx0)<=gap||Math.abs(y-cy0)<=gap))continue;if(hash(x,y,401)<p)put(x,y,ch)}};
    const scat=(cx0,cy0,r,ch,n,k)=>{for(let i=0;i<n*4&&n>0;i++){const a=hash(i,k,402)*6.283,d=Math.sqrt(hash(i,k,403))*r,x=Math.round(cx0+Math.cos(a)*d),y=Math.round(cy0+Math.sin(a)*d);if(ok(x,y)&&O[y][x]===' '&&!'wlo'.includes(G[y][x])&&Math.hypot(x-cx0,y-cy0)>1.5){O[y][x]=ch;n--}}};
    const B={
     sirens:p=>{disc(p.x,p.y,7,'s',1);ring(p.x,p.y,6,'R',.7);put(p.x,p.y,'&');scat(p.x,p.y,5,'4',3,1);CACHES.find(q=>q.id==='siren').x=p.x+3;CACHES.find(q=>q.id==='siren').y=p.y+2},
     chapel:p=>{disc(p.x,p.y,9,'h',1);for(let y=p.y-5;y<=p.y+4;y++)for(let x=p.x-6;x<=p.x+6;x++){if(G[y][x]==='w')continue;G[y][x]='u';if((y===p.y-5||y===p.y+4||x===p.x-6||x===p.x+6)&&x!==p.x&&hash(x,y,404)>.3)O[y][x]='X'}
-      for(let i=0;i<8;i++)put(p.x+8+(i%2)*2,p.y-4+i,'J');put(p.x-3,p.y-2,'p');put(p.x+3,p.y-2,'p');put(p.x,p.y-3,'&');const R0=NEWRELIQ.find(r=>r.il===20&&r.y===326);R0.x=p.x;R0.y=p.y-3},
+      for(let i=0;i<8;i++)put(p.x+8+(i%2)*2,p.y-4+i,'J');put(p.x-3,p.y-2,'p');put(p.x+3,p.y-2,'p');put(p.x,p.y-3,'&');const R0=NEWRELIQ.find(r=>r.il===20&&r.x===0);R0.x=p.x;R0.y=p.y-3},
     henge:p=>{disc(p.x,p.y,8,'h');for(let i=0;i<8;i++){const a=i/8*6.283;put(Math.round(p.x+Math.cos(a)*6),Math.round(p.y+Math.sin(a)*5),'0')}for(let y=p.y-1;y<=p.y+1;y++)for(let x=p.x-1;x<=p.x+1;x++)G[y][x]='u';put(p.x,p.y,'@')},
     smuggle:p=>{disc(p.x,p.y,7,'s',1);put(p.x-3,p.y-3,'N');put(p.x+3,p.y-3,'N');put(p.x,p.y,'j');scat(p.x,p.y,6,'b',4,2);scat(p.x,p.y,6,'x',5,3);put(p.x-2,p.y+2,'l');put(p.x+4,p.y+3,'+')},
     kelp:p=>{for(let y=p.y-11;y<=p.y+11;y++)for(let x=p.x-11;x<=p.x+11;x++){if(!ok(x,y))continue;const d=Math.hypot(x-p.x,(y-p.y)*1.2);if(d>11)continue;O[y][x]=' ';G[y][x]=vnoise(x,y,3,405)>.62&&d>2?'o':'M';
@@ -800,77 +861,96 @@ function makeWorld(){const old=makeOld();
     basalt:p=>{disc(p.x,p.y,7,'u');ring(p.x,p.y,5,'p',1,0);put(p.x,p.y,'@');for(let y=p.y+1;y<=p.y+5;y++)O[y][p.x]=' '},
     ridge:p=>{disc(p.x,p.y,9,'a');for(let i=0;i<5;i++)put(p.x-8+i*4,p.y-2+Math.round(Math.cos(i)*2),'%');scat(p.x,p.y,8,'4',6,14);put(p.x+8,p.y+3,'&')},
     city:p=>{
-      // Walled city district: a proper gatehouse, towers, paved avenues, plaza,
-      // market lanes, wells, lamps and a ring of walkable civic buildings.
-      const cx=p.x,cy=p.y,stone=p.city==='sunspire'||p.city==='ironhollow'?'u':p.city==='emberwatch'?'g':p.city==='mirewatch'?'h':'s';
-      disc(cx,cy,22,stone);
-      for(let y=cy-13;y<=cy+13;y++)for(let x=cx-19;x<=cx+19;x++){
-        if(!ok(x,y))continue;G[y][x]=stone;
-        if((x===cx-19||x===cx+19||y===cy-13||y===cy+13)&&!(y===cy+13&&Math.abs(x-cx)<=2)&&!(y===cy-13&&Math.abs(x-cx)<=2)&&!(x===cx-19&&Math.abs(y-cy)<=1)&&!(x===cx+19&&Math.abs(y-cy)<=1))O[y][x]='Q';
-      }
-      for(const [dx,dy] of [[-19,-13],[19,-13],[-19,13],[19,13],[-19,0],[19,0],[0,-13],[0,13]])put(cx+dx,cy+dy,'Z');
-      // Gatehouse towers and a broad four-way avenue.
-      for(const dx of [-2,2]){put(cx+dx,cy+13,'Z');put(cx+dx,cy-13,'Z')}
-      for(let x=cx-18;x<=cx+18;x++){if(x!==cx){G[cy][x]='=';O[cy][x]=' '}if(x!==cx){G[cy-1][x]='=';O[cy-1][x]=' '}}
-      for(let y=cy-12;y<=cy+12;y++){if(y!==cy){G[y][cx]='=';O[y][cx]=' '}if(y!==cy){G[y][cx+1]='=';O[y][cx+1]=' '}}
-      // Grand central plaza, fountain, statue, notice board and lamp-lined square.
-      for(let y=cy-4;y<=cy+4;y++)for(let x=cx-6;x<=cx+6;x++){G[y][x]='u';O[y][x]=' '}
-      for(const [dx,dy] of [[-5,-3],[5,-3],[-5,3],[5,3]])put(cx+dx,cy+dy,'L');
-      put(cx,cy-2,'O');put(cx,cy+2,'P');put(cx-2,cy,'b');put(cx+2,cy,'x');
-      // Decorative inner courtyards and garden beds.
-      for(const [dx,dy] of [[-12,-7],[12,-7],[-12,7],[12,7]]){
-        for(let yy=-2;yy<=2;yy++)for(let xx=-3;xx<=3;xx++){if(Math.abs(xx)===3||Math.abs(yy)===2)put(cx+dx+xx,cy+dy+yy,'P');else if((xx+yy)%2===0)put(cx+dx+xx,cy+dy+yy,'T')}
-      }
-      for(const b of CITYBUILD.filter(q=>q.city===p.city)){
-        for(let yy=b.y;yy<b.y+b.h;yy++)for(let xx=b.x;xx<b.x+b.w;xx++){if(ok(xx,yy)){G[yy][xx]=stone;O[yy][xx]='H'}}
-        if(ok(b.door,b.y+b.h-1))O[b.y+b.h-1][b.door]='U';
-      }
-      // City-specific identity: docks, sunken cisterns or a defensive ash rampart.
-      if(p.city==='stormhaven'){
-        for(let x=cx-17;x<=cx-9;x++){G[cy+8][x]='B';O[cy+8][x]=' '}for(let x=cx-17;x<=cx-9;x+=2)put(x,cy+6,'L');
-        for(const [dx,dy] of [[-15,-8],[-11,-8],[15,8],[11,8]])put(cx+dx,cy+dy,'8');
-      }else if(p.city==='sunspire'){
-        for(const [dx,dy] of [[-15,-8],[15,-8],[-15,8],[15,8]]){put(cx+dx,cy+dy,'0');put(cx+dx+1,cy+dy,'p')}
-        for(let i=-5;i<=5;i+=2){put(cx+i,cy-6,'p');put(cx+i,cy+6,'p')}
-      }else if(p.city==='mirewatch'){
-        // A layered marsh moat and a maze of timber boardwalks connect stilted wards.
-        for(let y=cy-17;y<=cy+17;y++)for(let x=cx-22;x<=cx+22;x++)if(Math.abs(x-cx)>19||Math.abs(y-cy)>13){if(ok(x,y)&&hash(x,y,882)>.2){G[y][x]='M';O[y][x]=' '}}
-        for(let x=cx-20;x<=cx+20;x++){G[cy-15][x]='B';G[cy+15][x]='B';if(x%3===0){O[cy-15][x]='I';O[cy+15][x]='I'}}
-        for(let y=cy-14;y<=cy+14;y++){G[y][cx-20]='B';G[y][cx+20]='B';if(y%3===0){O[y][cx-20]='I';O[y][cx+20]='I'}}
-        for(let i=-16;i<=16;i+=4){put(cx+i,cy-12,'n');put(cx+i,cy+12,'n')}
-        for(const [dx,dy] of [[-15,-8],[15,-8],[-15,8],[15,8]]){put(cx+dx,cy+dy,'Y');put(cx+dx+1,cy+dy,'Y')}
-        for(let y=cy-8;y<=cy+8;y+=4)for(let x=cx-17;x<=cx+17;x+=5){G[y][x]='B';O[y][x]=' '}
-      }else if(p.city==='ironhollow'){
-        // Mountain galleries, switchback ramps, ore yards and monumental clan statues.
-        for(let r=15;r<=20;r+=5)ring(cx,cy,r,'X',.9,2);
-        for(const [dx,dy] of [[-15,-8],[15,-8],[-15,8],[15,8]]){put(cx+dx,cy+dy,'Z');put(cx+dx+1,cy+dy,'0')}
-        for(let i=-16;i<=16;i+=4){put(cx+i,cy-11,'F');put(cx+i,cy+11,'F')}
-        for(let y=cy-10;y<=cy+10;y+=5)for(let x=cx-16;x<=cx+16;x+=8){put(x,y,'O');if(x<cx)put(x+1,y,'p')}
-        for(let i=0;i<5;i++){G[cy+5+i][cx-10+i]='=';G[cy-5-i][cx+10-i]='='}
-      }else{
-        for(const [dx,dy] of [[-16,-8],[16,-8],[-16,8],[16,8]])put(cx+dx,cy+dy,'^');
-        for(let x=cx-18;x<=cx+18;x+=4)if(x!==cx-2&&x!==cx+2)put(x,cy-13,'F');
-      }
-      put(cx,cy+13,' ');put(cx,cy-13,' ');put(cx-19,cy,' ');put(cx+19,cy,' ');
+      // Walled city: outer curtain wall with gatehouses, an inner wall around the
+      // civic core, four walled wards (upper, residential, market, craft/harbor)
+      // packed with houses along lanes and alleys, and a central plaza.
+      const cx=p.x,cy=p.y,C=CITYSTY[p.city],id=p.city,K=cx*7+cy*13;
+      const X0=cx-27,X1=cx+28,Y0=cy-19,Y1=cy+18,IX0=cx-17,IX1=cx+18,IY0=cy-12,IY1=cy+11;
+      const hs=(a,b,k)=>hash(a,b,K+k);
+      const setG=(x,y,g)=>{if(ok(x,y)){G[y][x]=g;O[y][x]=' '}};
+      const solid=(x,y,ch)=>{if(ok(x,y)){if('wlo'.includes(G[y][x]))G[y][x]=C.lane;O[y][x]=ch}};
+      const freeAt=(x,y)=>ok(x,y)&&O[y][x]===' '&&!'wlo#'.includes(G[y][x]);
+      const deco=(x,y,ch)=>{if(freeAt(x,y)&&G[y][x]!==C.lane&&!NPCSPOT.has((x-cx)+','+(y-cy)))O[y][x]=ch};
+      // footprint, apron and a cleared ring around the walls
+      for(let y=Y0-4;y<=Y1+4;y++)for(let x=X0-4;x<=X1+4;x++){if(!ok(x,y))continue;O[y][x]=' ';
+        if(x>X0&&x<X1&&y>Y0&&y<Y1)G[y][x]=C.ward;else if(x>=X0-1&&x<=X1+1&&y>=Y0-1&&y<=Y1+1)G[y][x]=C.apron;else if('wlo'.includes(G[y][x])&&!C.keepW)G[y][x]=C.apron}
+      for(let y=IY0+1;y<IY1;y++)for(let x=IX0+1;x<IX1;x++)setG(x,y,C.core);
+      // lanes and alleys
+      for(let x=X0+1;x<X1;x++){setG(x,cy-14,C.lane);setG(x,cy-13,C.lane);setG(x,cy+12,C.lane);setG(x,cy+17,C.lane)}
+      for(let y=Y0+1;y<Y1;y++){setG(cx-18,y,C.lane);setG(cx+19,y,C.lane)}
+      for(const ay of [cy-8,cy-3,cy+5,cy+10]){for(let x=X0+1;x<cx-18;x++)setG(x,ay,C.lane);for(let x=cx+20;x<X1;x++)setG(x,ay,C.lane)}
+      for(let x=IX0+1;x<IX1;x++){setG(x,IY0+1,C.lane);setG(x,IY1-1,C.lane)}for(let y=IY0+1;y<IY1;y++){setG(IX0+1,y,C.lane);setG(IX1-1,y,C.lane)}
+      // plaza
+      for(let y=cy-4;y<=cy+3;y++)for(let x=cx-9;x<=cx+10;x++)setG(x,y,C.plaza);
+      // avenues
+      for(let y=Y0;y<=Y1;y++){setG(cx,y,'#');setG(cx+1,y,'#')}for(let x=X0;x<=X1;x++){setG(x,cy-1,'#');setG(x,cy,'#')}
+      // houses
+      const roofs=C.roofs,msgs=CITYMSG[id];
+      const house=(x,y,w,h,kind)=>{if(w<3)return;for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)if(!ok(xx,yy)||O[yy][xx]!==' '||G[yy][xx]==='#')return;
+        const r=roofs[(hs(x,y,1)*roofs.length)|0],stw=hs(x,y,2)<C.stoneP,door=x+1+((hs(x,y,3)*(w-2))|0);
+        for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){G[yy][xx]=C.ward;O[yy][xx]='H'}O[y+h-1][door]='U';
+        CITYBUILD.push({city:id,x,y,w,h,door,kind:kind||'house',roof:r[0],rc:r[1],pl:C.pls[(hs(x,y,4)*C.pls.length)|0],stonew:stw?1:0,stc:C.stc,
+          shutter:hs(x,y,5)<.7?C.sh[(hs(x,y,6)*C.sh.length)|0]:null,chimney:hs(x,y,7)<.55?1:0,msg:msgs[(hs(x,y,8)*msgs.length)|0],filler:1})};
+      const row=(x0,x1,y,h,opt={})=>{let x=x0;while(x<=x1){let w=(opt.wmin||4)+((hs(x,y,11)*((opt.wmax||6)-(opt.wmin||4)+1))|0);if(x1-x+1-w<3&&x1-x+1-w>0)w=x1-x+1;if(x+w-1>x1)w=x1-x+1;
+          if(w<3){for(let xx=x;xx<=x1;xx++)deco(xx,y+h-1,'bxb'[xx%3]);break}
+          if(opt.garden&&hs(x,y,12)<opt.garden){for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++){if(yy===y+h-1&&(xx===x||xx===x+w-1)){deco(xx,yy,'F');continue}if(yy<y+h-1&&hs(xx,yy,13)<.55)deco(xx,yy,C.tree)}x+=w;continue}
+          house(x,y,w,h,opt.kind);x+=w+(hs(x,y,14)<(opt.gap||.25)?1:0)}};
+      // north band: upper ward (gardens and fine houses)
+      for(const [a,b] of [[X0+1,cx-19],[cx-17,cx-2],[cx+3,cx+18],[cx+20,X1-1]])row(a,b,cy-18,4,{garden:.22,wmin:4,wmax:6});
+      // south band: craft ward / warehouses on the harbor side
+      for(const [a,b] of [[X0+1,cx-19],[cx-17,cx-2],[cx+3,cx+18],[cx+20,X1-1]])row(a,b,cy+13,4,{wmin:C.wide?6:4,wmax:C.wide?8:6,gap:.4});
+      // west band: residential terraces
+      for(const ry of [cy-12,cy-7,cy+1,cy+6]){house(X0+1,ry,4,4);house(X0+5,ry,4,4)}
+      // east band: market ward, stalls along the inner lane, shops behind
+      for(const ry of [cy-12,cy-7,cy+1,cy+6]){house(cx+24,ry,4,4,'shop');for(let i=0;i<4;i++){const yy=ry+i;if(i===3){deco(cx+21,yy,'b');deco(cx+23,yy,'x')}else if(i===1){deco(cx+21,yy,'k');deco(cx+22,yy,'k')}else if(i===0)deco(cx+20+((hs(ry,i,15)*3)|0),yy,'A');else deco(cx+22,yy,C.tree==='5'?'5':'h')}}
+      // ward divider walls (with arches left open on the lanes)
+      for(const dx of [-18,19])for(const [y0,y1] of [[cy-18,cy-15],[cy+13,cy+16]])for(let y=y0;y<=y1;y++)solid(cx+dx,y,'Q');
+      for(const dx of [-18,19]){solid(cx+dx,cy-18,'Z');solid(cx+dx,cy+16,'Z')}
+      // inner wall with four gates
+      for(let x=IX0;x<=IX1;x++)for(const y of [IY0,IY1])if(x<cx||x>cx+1)solid(x,y,'Q');
+      for(let y=IY0;y<=IY1;y++)for(const x of [IX0,IX1])if(y<cy-1||y>cy)solid(x,y,'Q');
+      for(const [x,y] of [[IX0,IY0],[IX1,IY0],[IX0,IY1],[IX1,IY1],[cx-1,IY0],[cx+2,IY0],[cx-1,IY1],[cx+2,IY1],[IX0,cy-2],[IX0,cy+1],[IX1,cy-2],[IX1,cy+1]])solid(x,y,'Z');
+      // outer curtain wall, towers and gatehouses
+      for(let x=X0;x<=X1;x++)for(const y of [Y0,Y1])if(x<cx-1||x>cx+2)solid(x,y,'Q');
+      for(let y=Y0;y<=Y1;y++)for(const x of [X0,X1])if(y<cy-2||y>cy+1)solid(x,y,'Q');
+      for(let x=X0;x<=X1;x+=9)for(const y of [Y0,Y1])if(Math.abs(x-cx)>3)solid(x,y,'Z');
+      for(let y=Y0;y<=Y1;y+=9)for(const x of [X0,X1])if(Math.abs(y-cy)>3)solid(x,y,'Z');
+      for(const [x,y] of [[X0,Y0],[X1,Y0],[X0,Y1],[X1,Y1],[cx-2,Y0],[cx+3,Y0],[cx-2,Y1],[cx+3,Y1],[X0,cy-3],[X0,cy+2],[X1,cy-3],[X1,cy+2]])solid(x,y,'Z');
+      for(let x=cx-1;x<=cx+2;x++)for(const y of [Y0,Y1]){G[y][x]='#';O[y][x]=' '}
+      for(let y=cy-2;y<=cy+1;y++)for(const x of [X0,X1]){G[y][x]='#';O[y][x]=' '}
+      // civic buildings around the plaza (their interiors keep working)
+      const SL=[[-15,-10],[-7,-10],[3,-10],[-15,4],[10,4]];let i=0;
+      for(const b of CITYBUILD.filter(q=>q.city===id&&!q.filler)){const s=SL[i++];if(!s)break;const off=b.door-b.x;
+        b.x=cx+s[0]-(b.w>7?1:0);b.y=cy+s[1]-(b.h>6?1:0);b.door=b.x+off;
+        for(let yy=b.y;yy<b.y+b.h;yy++)for(let xx=b.x;xx<b.x+b.w;xx++){G[yy][xx]=C.core;O[yy][xx]='H'}O[b.y+b.h-1][b.door]='U'}
+      house(cx+11,cy-10,6,6,'house');
+      // plaza: fountain, wells, statue, lamps, benches
+      deco(cx-4,cy-3,'O');deco(cx+5,cy-3,'O');deco(cx-3,cy+3,'l');deco(cx+4,cy+3,'l');deco(cx-1,cy+3,C.statue);
+      for(const [dx,dy] of [[-9,-4],[10,-4],[-9,3],[10,3]])deco(cx+dx,cy+dy,'L');
+      // lower core: market stalls and garden squares
+      for(let x=cx-7;x<=cx-2;x++){deco(x,cy+6,x%2?'k':'x');if(hs(x,1,16)<.6)deco(x,cy+8,C.tree)}
+      for(let x=cx+3;x<=cx+8;x++){deco(x,cy+6,x%2?'k':'b');if(hs(x,2,16)<.6)deco(x,cy+8,C.tree)}
+      // lamps along both avenues, banners at the gates
+      for(let y=Y0+2;y<Y1-1;y+=3)if(Math.abs(y-cy)>12){deco(cx-1,y,'L');deco(cx+2,y,'L')}for(let x=X0+2;x<X1-1;x+=4)if(x<IX0||x>IX1){deco(x,cy-2,'L');deco(x,cy+1,'L')}
+      for(const [dx,dy] of [[-1,-11],[2,-11],[-1,10],[2,10]])deco(cx+dx,cy+dy,'+');
+      // wells and clutter in the wards
+      for(const [dx,dy] of [[-22,-2],[23,-2]])deco(cx+dx,cy+dy,'O');
+      // approach roads out of the four gates
+      for(let k=1;k<=10;k++){for(const x of [cx,cx+1]){if(ok(x,Y1+k)&&!'w'.includes(G[Y1+k][x])&&!C.noSouth){G[Y1+k][x]='=';O[Y1+k][x]=' '}if(ok(x,Y0-k)){G[Y0-k][x]='=';O[Y0-k][x]=' '}}
+        for(const y of [cy-1,cy]){if(ok(X1+k,y)){G[y][X1+k]='=';O[y][X1+k]=' '}if(ok(X0-k,y)){G[y][X0-k]='=';O[y][X0-k]=' '}}}
+      // city identity
+      if(id==='sunspire'){for(let y=cy-10;y<=cy+9;y+=3)if(Math.abs(y-cy)>4){deco(cx-1,y,'p');deco(cx+2,y,'p')}for(const [dx,dy] of [[-4,-20],[5,-20],[-4,19],[5,19],[-29,-4],[-29,3],[30,-4],[30,3]])solid(cx+dx,cy+dy,'0')}
+      else if(id==='emberwatch'){for(const [dx,dy] of [[-12,-13],[13,-13],[-12,12],[13,12]])deco(cx+dx,cy+dy,'^');for(let x=X0-3;x<=X1+3;x++)for(const y of [Y0-3,Y1+3])if(ok(x,y)&&hs(x,y,17)<.35&&O[y][x]===' '&&G[y][x]!=='=')O[y][x]='3'}
+      else if(id==='mirewatch'){for(let y=Y0-4;y<=Y1+4;y++)for(let x=X0-4;x<=X1+4;x++){if(!ok(x,y)||(x>=X0-1&&x<=X1+1&&y>=Y0-1&&y<=Y1+1))continue;if(G[y][x]==='='){G[y][x]='B';continue}G[y][x]=hs(x,y,18)<.55?'o':'M';if(hs(x,y,19)<.08)O[y][x]='Y'}
+        for(let k=1;k<=4;k++){for(const x of [cx,cx+1]){G[Y1+k][x]='B';G[Y0-k][x]='B'}for(const y of [cy-1,cy]){G[y][X1+k]='B';G[y][X0-k]='B'}}}
+      else if(id==='ironhollow'){for(const [dx,dy] of [[-6,-13],[7,-13],[-6,12],[7,12]])deco(cx+dx,cy+dy,'&');for(let y=cy-9;y<=cy+8;y+=4){deco(IX0+2,y,'p');deco(IX1-2,y,'p')}}
     }};
    for(const p of PLACES){if(p.x===0){const sx=shoreX(p.y);p.x=p.b==='chapel'?sx+3:sx+9}B[p.b](p)}
-   // Extend the major settlements beyond their central squares: outer wards,
-   // secondary gates, waterworks, terraces, defensive towers and connected roads.
-   for(const p of PLACES.filter(q=>q.b==='city')){
-     const x=p.x,y=p.y;
-     for(let i=-15;i<=15;i+=5){put(x+i,y-16,'Z');put(x+i,y+16,'Z')}
-     for(let j=-10;j<=10;j+=5){put(x-21,y+j,'Z');put(x+21,y+j,'Z')}
-     for(let j=-15;j<=15;j++){if(j%3===0){G[y+j][x-22]='=';G[y+j][x+22]='='}}
-     for(let i=-22;i<=22;i++){if(i%3===0){G[y-17][x+i]='=';G[y+17][x+i]='='}}
-     for(const [dx,dy] of [[-23,-17],[23,-17],[-23,17],[23,17]])if(ok(x+dx,y+dy))put(x+dx,y+dy,'Z');
-     // Four approach roads link the city gates to the regional road network.
-     for(let k=18;k<=27;k++){if(ok(x,y+k))G[y+k][x]='=';if(ok(x,y-k))G[y-k][x]='=';if(ok(x+k,y))G[y][x+k]='=';if(ok(x-k,y))G[y][x-k]='='}
-   }
    for(const w of WAYS)if(!PLACES.some(p=>p.x===w.x&&p.y===w.y)){clear(w.x,w.y,2,null);O[w.y][w.x]='@'}
    for(const p of PLACES)NSITES.push({n:p.n,x:p.x,y:p.y,r:p.r});
    sign(PL('serai').x+3,PL('serai').y+6,'Caravanserai of Two Moons','REST. WATER. NO FIGHTING. (The last rule is mostly a suggestion.)');sign(PL('djinn').x+2,PL('djinn').y+6,"Djinn's Lamp",'Three wishes, one per customer. Wishes not guaranteed. The management is not responsible for curses.');
    sign(PLACES[3].x+6,PLACES[3].y-6,'Smugglers\' Cove','No sign of anything here. Nothing to see. Move along. (Signed, the Management.)');
-   sign(232,96,'Frostwind Hamlet','Mead, furs, and a warm fire. Strangers welcome. Wolves not.');sign(588,246+9,"Temple of Ra'Khet",'Built to honor the sun. The sun, it seems, did not return the favor.');sign(236,357,'Khaz Dural','THE DEEP FORGE OF CLAN DURAL. The rest of the carving has been smashed.')}
+   sign(...MP(232,96),'Frostwind Hamlet','Mead, furs, and a warm fire. Strangers welcome. Wolves not.');sign(...MP(588,255),"Temple of Ra'Khet",'Built to honor the sun. The sun, it seems, did not return the favor.');sign(...MP(236,357),'Khaz Dural','THE DEEP FORGE OF CLAN DURAL. The rest of the carving has been smashed.')}
   // reliquaries and grimoires
   for(const R of NEWRELIQ){RELIQ.push(R);clear(R.x,R.y,2);for(let y=R.y-1;y<=R.y+1;y++)for(let x=R.x-1;x<=R.x+1;x++)G[y][x]='u';
     O[R.y][R.x]='H';for(const [dx,dy] of [[-2,-2],[2,-2],[-2,2],[2,2]])if(!'wl'.includes(G[R.y+dy][R.x+dx]))O[R.y+dy][R.x+dx]='p'}
@@ -878,20 +958,20 @@ function makeWorld(){const old=makeOld();
       if(d<=1.5)G[y][x]='u';else if('wol'.includes(G[y][x]))G[y][x]=d<=2.5?'.':'s'}
     O[g.y][g.x]='G';for(const [dx,dy] of [[-2,-2],[2,-2],[-2,2],[2,2]])if(g.x+dx>=0)O[g.y+dy][g.x+dx]='p'}
   // Saltmere, a fishing village on the Stormcoast
-  {const sx=shoreX(232),vx=sx+14;Object.assign(SALT,{vx,sx});
-    for(let y=212;y<=250;y++)for(let x=sx;x<=vx+36;x++){O[y][x]=' ';if(x<sx+4)G[y][x]='s';else G[y][x]='.';ZONE[y][x]=11}
+  {const sx=shoreX((232+DY)),vx=sx+14;Object.assign(SALT,{vx,sx});
+    for(let y=(212+DY);y<=(250+DY);y++)for(let x=sx;x<=vx+36;x++){O[y][x]=' ';if(x<sx+4)G[y][x]='s';else G[y][x]='.';ZONE[y][x]=11}
     for(const b of SALTB(vx)){for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++){O[y][x]='H';G[y][x]='.'}O[b.y+b.h-1][b.door]='U'}
-    for(let x=sx;x<=vx+34;x++){road(x,228);road(x,229)}for(let y=OY+17;y<=227;y++){road(vx+21,y);road(vx+22,y)}
-    for(let y=226;y<=231;y++)for(let x=sx-12;x<sx+1;x++)if(G[y][x]==='w'&&y>=228&&y<=229)G[y][x]='B';
-    for(const [x,y] of [[vx+3,226],[vx+12,226],[vx+30,226],[vx+3,232],[vx+30,232]])O[y][x]='L';
-    for(const [x,y] of [[vx+6,234],[vx+7,234],[vx+26,234],[vx+27,235],[sx+5,232]])O[y][x]=hash(x,y,5)<.5?'b':'x';
-    for(let x=vx+8;x<=vx+16;x++){O[240][x]='F';O[246][x]='F'}for(let y=240;y<=246;y++){O[y][vx+8]='F';O[y][vx+16]='F'}O[243][vx+16]=' ';for(let y=241;y<246;y++)for(let x=vx+9;x<vx+16;x++)O[y][x]='q';
-    sign(vx+20,224,'Saltmere',"A fishing village of salt and nets. The Salty Gull serves ale and sells supplies. Elder Maren's hut is by the green.");
+    for(let x=sx;x<=vx+34;x++){road(x,(228+DY));road(x,(229+DY))}for(let y=OY+17;y<=(227+DY);y++){road(vx+21,y);road(vx+22,y)}
+    for(let y=(226+DY);y<=(231+DY);y++)for(let x=sx-12;x<sx+1;x++)if(G[y][x]==='w'&&y>=(228+DY)&&y<=(229+DY))G[y][x]='B';
+    for(const [x,y] of [[vx+3,(226+DY)],[vx+12,(226+DY)],[vx+30,(226+DY)],[vx+3,(232+DY)],[vx+30,(232+DY)]])O[y][x]='L';
+    for(const [x,y] of [[vx+6,(234+DY)],[vx+7,(234+DY)],[vx+26,(234+DY)],[vx+27,(235+DY)],[sx+5,(232+DY)]])O[y][x]=hash(x,y,5)<.5?'b':'x';
+    for(let x=vx+8;x<=vx+16;x++){O[(240+DY)][x]='F';O[(246+DY)][x]='F'}for(let y=(240+DY);y<=(246+DY);y++){O[y][vx+8]='F';O[y][vx+16]='F'}O[(243+DY)][vx+16]=' ';for(let y=(241+DY);y<(246+DY);y++)for(let x=vx+9;x<vx+16;x++)O[y][x]='q';
+    sign(vx+20,(224+DY),'Saltmere',"A fishing village of salt and nets. The Salty Gull serves ale and sells supplies. Elder Maren's hut is by the green.");
     // Gull Point lighthouse
-    const ly=158,lx=shoreX(ly)+4;SALT.lx=lx;SALT.ly=ly;clear(lx,ly,4,'s');O[ly][lx]='7';for(let y=ly+2;y<=OY+15;y++){road(lx+3,y);road(lx+4,y)}sign(lx+6,ly+3,'Gull Point','The lighthouse has burned every night for two hundred years. Orsa makes sure of it.');
+    const ly=(158+DY),lx=shoreX(ly)+4;SALT.lx=lx;SALT.ly=ly;clear(lx,ly,4,'s');O[ly][lx]='7';for(let y=ly+2;y<=OY+15;y++){road(lx+3,y);road(lx+4,y)}sign(lx+6,ly+3,'Gull Point','The lighthouse has burned every night for two hundred years. Orsa makes sure of it.');
     // the wreck of the Merry Widow
-    const wy=274,wx=shoreX(wy)+3;clear(wx,wy,4,'s');O[wy][wx]='8';const ch=CACHES[0];ch.x=wx+4;ch.y=wy+2;
-    const sj=ELITES[0];sj.x=shoreX(262)+7;sj.y=262;clear(sj.x,sj.y,3,'s')}
+    const wy=(274+DY),wx=shoreX(wy)+3;clear(wx,wy,4,'s');O[wy][wx]='8';const ch=CACHES[0];ch.x=wx+4;ch.y=wy+2;
+    const sj=ELITES[0];sj.x=shoreX((262+DY))+7;sj.y=(262+DY);clear(sj.x,sj.y,3,'s')}
   // Forts receive a second defensive envelope: ditch, glacis, bridge, watch fires,
   // siege engines and supply yards beyond the main curtain wall.
   for(const p of PLACES.filter(q=>q.b==='fort')){
@@ -926,10 +1006,10 @@ function makeWorld(){const old=makeOld();
       for(const [dx,dy] of [[-4,-4],[4,-4],[-4,4],[4,4]])O[e.y+dy][e.x+dx]='0';for(let i=-2;i<=2;i++)G[e.y+5][e.x+i]='l';
     }
   }
-  sign(476,92,'Hot Spring','Steam rises from a pool of warm water in the middle of the snow. Bathe here to restore your strength.');
-  sign(658,246,'Sphinx of Qadim','Half buried in sand, the Sphinx stares east. Travelers say it once asked riddles. Now it only watches.');
+  sign(...MP(476,92),'Hot Spring','Steam rises from a pool of warm water in the middle of the snow. Bathe here to restore your strength.');
+  sign(...MP(658,246),'Sphinx of Qadim','Half buried in sand, the Sphinx stares east. Travelers say it once asked riddles. Now it only watches.');
   // hermit by Mirror Lake and the peddler on the south road
-  clear(437,152,2,'.');O[152][435]='N';O[154][438]='l';clear(OX+25,OY+TH+8,1,null);
+  clear(437+DX,152+DY,2,'.');O[152+DY][435+DX]='N';O[154+DY][438+DX]='l';clear(OX+25,OY+TH+8,1,null);
   // Major lairs gain monumental approach architecture so their scale and identity
   // are visible well before the player reaches the boss itself.
   {const ok=(x,y)=>x>1&&y>1&&x<WW-2&&y<WH-2,put=(x,y,ch)=>{if(ok(x,y)&&!'wlo'.includes(G[y][x]))O[y][x]=ch};
@@ -953,33 +1033,69 @@ function makeWorld(){const old=makeOld();
   sign(OX+19,OFY-4,'Signpost','NORTH: Frostpeak Tundra. Wolfsbane Camp lies up the road. Beyond it, the summit where the Frost Titan sleeps.');
   sign(OX+24,OFY+183,'Signpost','SOUTH: the Emberfall Wastes. Mind the lava. Ashwalker Camp is a short walk down the road.');
   sign(CX+CW+2,OY+13,'Signpost',"EAST: the Sunscorch Desert. The Oasis of Qadim lies north of the road. The Pharaoh's Tomb lies at its end.");
-  sign(604,159,'Oasis of Qadim','Cool water and date palms. Travelers rest here before the long walk to the tomb.');
+  sign(...MP(604,159),'Oasis of Qadim','Cool water and date palms. Travelers rest here before the long walk to the tomb.');
   for(let y=0;y<WH;y++)for(let x=0;x<WW;x++)if((x<2||y<2||x>=WW-2||y>=WH-2)&&G[y][x]!=='w')O[y][x]=ZONE[y][x]===2?'K':ZONE[y][x]===0?'T':'C';
+  // ---- Stormhaven harbor: a stone quay under the south wall, a basin with
+  //      piers and cranes, and a channel out to the open sea ----
+  {const sp=PLACES.find(p=>p.city==='stormhaven'),cx=sp.x,cy=sp.y,H=HARBOR;
+   const okH=(x,y)=>x>=0&&y>=0&&x<WW&&y<WH;
+   const inB=(x,y)=>{if(y<H.by0||y>H.by1||x<H.bx0||x>H.bx1)return false;const rx=Math.max(0,H.bx0+4-x,x-(H.bx1-4)),ry=Math.max(0,y-(H.by1-4));return rx*rx+ry*ry<=14+(vnoise(x,y,3,611)-.5)*8};
+   const Wt=[];for(let y=H.by0;y<=H.by1;y++)for(let x=H.bx0;x<=H.bx1;x++)if(inB(x,y))Wt.push([x,y]);
+   for(let y=H.cy0;y<=H.cy1;y++){const sx=shoreX(y);for(let x=sx-4;x<H.bx0+6;x++)Wt.push([x,y])}
+   for(const [x,y] of Wt)if(okH(x,y)){G[y][x]='w';O[y][x]=' '}
+   for(const [x,y] of Wt)for(const [dx,dy] of [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,1],[1,-1],[-1,-1]]){const nx=x+dx,ny=y+dy;if(!okH(nx,ny)||G[ny][nx]==='w'||ny<=H.qy1)continue;
+     if(!'=#uBQ'.includes(G[ny][nx])){G[ny][nx]='s';if('TKRYIXv_'.includes(O[ny][nx]))O[ny][nx]=' '}}
+   for(let y=H.qy0;y<=H.qy1;y++)for(let x=H.bx0-2;x<=H.bx1+4;x++){G[y][x]='u';O[y][x]=' '}
+   for(let x=H.bx0-2;x<=H.bx1+4;x++)if(G[H.qy1+1][x]!=='w'&&G[H.qy1+1][x]!=='B'){G[H.qy1+1][x]='u';O[H.qy1+1][x]=' '}
+   for(const px of H.piers){for(let y=H.by0;y<=H.by0+7;y++){G[y][px]='B';G[y][px+1]='B';O[y][px]=O[y][px+1]=' '}for(let x=px-2;x<=px+3;x++){G[H.by0+7][x]='B';O[H.by0+7][x]=' '}
+     O[H.qy1][px+3]='ç';O[H.qy0+1][px-1]='x';O[H.qy0+1][px-2]='b';O[H.qy0][px+4]='b'}
+   for(let x=H.bx0;x<=H.bx1+3;x+=6)if(O[H.qy1][x]===' '&&!H.piers.some(p=>x>=p-1&&x<=p+2))O[H.qy1][x]='L';
+   for(const x of [H.bx0-1,H.bx1+3])O[H.qy0+1][x]='A';
+   // watch tower on the far bank of the channel mouth, and beacon lamps
+   {const tx=H.bx0-2,ty=H.cy1+2;if(okH(tx,ty)){G[ty][tx]='u';O[ty][tx]='Z';G[ty+1][tx]='s'}const lx=H.bx0-2,ly=H.cy0-2;if(okH(lx,ly)&&G[ly][lx]!=='w'){O[ly][lx]='L'}}
+  }
+  // ---- Mountains: terraced massifs with switchback trails and a cache at the top ----
+  {const NATO=new Set(' TKRYIX_1235c*v4'),okM=(x,y)=>x>=2&&y>=2&&x<WW-2&&y<WH-2;
+   MOUNTS.forEach((m,mi)=>{const ry=m.R/1.25,ang=hash(mi,3,77)*.8-.4,ca=Math.cos(ang),sa=Math.sin(ang);
+    const dist=(x,y)=>{const dx=x-m.x,dy=y-m.y,u=(dx*ca+dy*sa)/m.R,v=(-dx*sa+dy*ca)/ry;return Math.hypot(u,v)+(vnoise(x,y,5,900+mi)-.5)*.3+(vnoise(x,y,2,950+mi)-.5)*.1};
+    for(let y=Math.floor(m.y-m.R-3);y<=m.y+m.R+3;y++)for(let x=Math.floor(m.x-m.R-3);x<=m.x+m.R+3;x++){if(!okM(x,y))continue;
+      const d=Math.hypot(x-m.x,y-m.y)<1.5?0:dist(x,y);if(d>=1)continue;if('w=#B~lo'.includes(G[y][x])||!NATO.has(O[y][x]))continue;
+      const h=Math.max(1,Math.min(m.L,1+Math.floor((1-d)*m.L*(m.mesa?2.6:1.25))));const i=y*WW+x;MH[i]=h;MI[i]=mi+1;G[y][x]='µ';O[y][x]='£'}
+    const pts=[[.1,1.25],[.55,.7],[-.52,.45],[.4,.22],[-.2,.08],[0,0]].map(([u,v])=>[m.x+u*m.R,m.y+v*ry]);
+    for(let s=0;s<pts.length-1;s++){const [ax,ay]=pts[s],[bx,by]=pts[s+1],n=Math.ceil(Math.hypot(bx-ax,by-ay)*2);
+      let px=Math.round(ax),py=Math.round(ay);const steep=Math.abs(by-ay)>Math.abs(bx-ax);
+      const mark=(x,y)=>{for(const [qx,qy] of [[x,y],steep?[x+1,y]:[x,y+1]]){if(!okM(qx,qy))continue;if(MI[qy*WW+qx]===mi+1||NATO.has(O[qy][qx])&&!'w#B'.includes(G[qy][qx]))O[qy][qx]=' '}};
+      for(let k=0;k<=n;k++){const x0=Math.round(ax+(bx-ax)*k/n),y0=Math.round(ay+(by-ay)*k/n);if(x0!==px&&y0!==py)mark(x0,py);mark(x0,y0);px=x0;py=y0}}
+    const top=MH[m.y*WW+m.x]||m.L;
+    for(let y=m.y-2;y<=m.y+2;y++)for(let x=m.x-2;x<=m.x+2;x++){const i=y*WW+x;if(MI[i]!==mi+1||Math.hypot(x-m.x,y-m.y)>2.4)continue;MH[i]=top;O[y][x]=' '}
+    O[m.y-1][m.x+1]='ø';CACHES.push({id:'peak'+mi,n:m.n+' Summit Cache',x:m.x-1,y:m.y-1,il:m.il,g:m.g,text:'A weatherproof box sits under the summit cairn. Scratched on the lid: "For whoever makes the climb."'});O[m.y-1][m.x-1]='6';
+    for(let k=0;k<26;k++){const a=hash(k,mi,31)*6.283,rr=1.02+hash(k,mi,32)*.25,x=Math.round(m.x+Math.cos(a)*m.R*rr),y=Math.round(m.y+Math.sin(a)*ry*rr);if(okM(x,y)&&O[y][x]===' '&&!MI[y*WW+x]&&!'w=#B~lo'.includes(G[y][x])&&Math.abs(x-pts[0][0])>2)O[y][x]='R'}
+   })}
   // make sure every reliquary, grimoire and boss can be walked to from town
-  {const SOL=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q'),NAT=new Set('TKRYCcIX_J1235');
+  {const SOL=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q£øç'),NAT=new Set('TKRYCcIX_J1235£');
     const ok=(x,y)=>{if(x<1||y<1||x>=WW-1||y>=WH-1)return false;const o=O[y][x];if(o!==' '&&SOL.has(o))return false;const g=G[y][x];return g!=='w'&&g!=='W'&&g!=='o'&&g!=='l'};
     const R=new Uint8Array(WW*WH),q=new Int32Array(WW*WH);let qh=0,qt=0;const s0=(OY+11)*WW+OX+7;R[s0]=1;q[qt++]=s0;
     while(qh<qt){const c=q[qh++],x=c%WW,y=(c/WW)|0;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,k=ny*WW+nx;if(!R[k]&&ok(nx,ny)){R[k]=1;q[qt++]=k}}}
     const link=(tx,ty)=>{if([[0,1],[0,-1],[1,0],[-1,0]].some(([dx,dy])=>R[(ty+dy)*WW+tx+dx]))return;let x=tx,y=ty+1;const gx=OX+21,gy=OY+15;
       for(let i=0;i<4000&&!R[y*WW+x];i++){if(O[y][x]!==' '&&NAT.has(O[y][x]))O[y][x]=' ';if('wol'.includes(G[y][x]))G[y][x]='B';
         const ddx=gx-x,ddy=gy-y;if(Math.abs(ddx)>Math.abs(ddy))x+=Math.sign(ddx);else y+=Math.sign(ddy)}};
-    for(const p of [...RELIQ,...GRIMS,...BOSSES,...CACHES,...LANDMARKS,...WAYS,...PLACES,...DUNGS.map(d=>({x:d.x,y:d.y+1})),{x:SALT.vx+21,y:228},{x:SALT.lx,y:SALT.ly}])link(p.x,p.y)}
+    for(const p of [...RELIQ,...GRIMS,...BOSSES,...CACHES,...LANDMARKS,...WAYS,...PLACES,...DUNGS.map(d=>({x:d.x,y:d.y+1})),{x:SALT.vx+21,y:228+DY},{x:SALT.lx,y:SALT.ly}])link(p.x,p.y)}
   return {ground:G.map(r=>r.join('')),obj:O.map(r=>r.join(''))};
 }
 const PL=b=>PLACES.find(p=>p.b===b);
-function SALTB(vx){return [{x:vx+3,y:214,w:9,h:7,roof:'thatch',door:vx+7,kind:'inn',sign:'GULL',shutter:'#2f5f8a',chimney:1,to:{map:'gull',x:7,y:8}},
-  {x:vx+15,y:216,w:6,h:5,roof:'thatch',door:vx+17,kind:'house',shutter:'#3f6b35',chimney:1,to:{map:'elder',x:5,y:5}},
-  {x:vx+25,y:215,w:6,h:6,roof:'tile',door:vx+27,kind:'house',shutter:'#8b2e24',msg:'Locked. Nets hang drying by the door, and it smells strongly of fish.'},
-  {x:vx+25,y:236,w:5,h:5,roof:'thatch',door:vx+27,kind:'house',shutter:'#2f5f8a',chimney:1,msg:'Locked. Someone inside is singing a sea shanty, badly.'}]}
+function SALTB(vx){return [{x:vx+3,y:214+DY,w:9,h:7,roof:'thatch',door:vx+7,kind:'inn',sign:'GULL',shutter:'#2f5f8a',chimney:1,to:{map:'gull',x:7,y:8}},
+  {x:vx+15,y:216+DY,w:6,h:5,roof:'thatch',door:vx+17,kind:'house',shutter:'#3f6b35',chimney:1,to:{map:'elder',x:5,y:5}},
+  {x:vx+25,y:215+DY,w:6,h:6,roof:'tile',door:vx+27,kind:'house',shutter:'#8b2e24',msg:'Locked. Nets hang drying by the door, and it smells strongly of fish.'},
+  {x:vx+25,y:236+DY,w:5,h:5,roof:'thatch',door:vx+27,kind:'house',shutter:'#2f5f8a',chimney:1,msg:'Locked. Someone inside is singing a sea shanty, badly.'}]}
 const WORLD=makeWorld();
 /* Safe zones: cities, villages and friendly camps. Wild monsters never spawn or walk inside these. */
 const SAFE=new Uint8Array(WW*WH);
 (function(){const rect=(x0,y0,x1,y1)=>{for(let y=Math.max(0,y0);y<=Math.min(WH-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(WW-1,x1);x++)SAFE[y*WW+x]=1};
   const circ=(cx,cy,r)=>rect(cx-r,cy-r,cx+r,cy+r);
   rect(OX-3,OY-3,OX+TW+2,OY+TH+2);rect(CX-3,CY-3,CX+CW+2,CY+CH+2);
-  for(const p of PLACES){if(p.b==='city')rect(p.x-23,p.y-17,p.x+23,p.y+17);else if(p.b==='hamlet')circ(p.x,p.y,15);else if(p.b==='nomads')circ(p.x,p.y,11)}
-  if(SALT.sx!=null)rect(SALT.sx-2,210,SALT.vx+38,252);if(SALT.lx!=null)circ(SALT.lx,SALT.ly,7);
-  for(const [x,y,r] of [[600,150,11],[334,84,12],[300,322,11],[140,190,9],[437,152,6],[70+OFX,100+OFY,8]])circ(x,y,r)})();
+  for(const p of PLACES){if(p.b==='city')rect(p.x-31,p.y-23,p.x+32,p.y+22);else if(p.b==='hamlet')circ(p.x,p.y,15);else if(p.b==='nomads')circ(p.x,p.y,11)}
+  if(SALT.sx!=null)rect(SALT.sx-2,210+DY,SALT.vx+38,250+DY);rect(HARBOR.bx0-8,HARBOR.qy0,HARBOR.bx1+6,HARBOR.by1+3);if(SALT.lx!=null)circ(SALT.lx,SALT.ly,7);
+  for(const [x,y,r] of [[...MP(600,150),11],[...MP(334,84),12],[...MP(300,322),11],[...MP(140,190),9],[437+DX,152+DY,6],[70+OFX,100+OFY,8]])circ(x,y,r)})();
 const isSafe=(x,y)=>x>=0&&y>=0&&x<WW&&y<WH&&SAFE[y*WW+x]===1;
 const GATES=new Set([[OX,OY+15],[OX,OY+16],[OX+TW-1,OY+15],[OX+TW-1,OY+16],[OX+21,OY],[OX+22,OY],[OX+21,OY+TH-1],[OX+22,OY+TH-1],[CX,CY+22],[CX,CY+23],[CX,CY+24],[CX+CW-1,CY+22],[CX+CW-1,CY+23],[CX+CW-1,CY+24]].map(a=>a.join(',')));
 for(const b of BUILDINGS){b.x+=OX;b.y+=OY;b.door+=OX}
@@ -1089,38 +1205,38 @@ MAPS.elder={name:"Elder Maren's Hut",outdoor:false,floor:'wood',stone:'#6d655a',
 "#####D#####"],npcs:[{x:5,y:2,kind:'elder',name:'Elder Maren',lines:['"The sea gives and the sea takes. Lately it only takes."','"My grandmother saw the Tide Queen rise when she was a girl. Now I have seen it too."']}]};
 for(const b of BUILDINGS)if(b.to)MAPS[b.to.map].exit={x:b.door,y:b.y+b.h};
 MAPS.world.npcs.push(
-  {x:116,y:219,kind:'guard',name:'Stormhaven Gate Captain',lines:['"Welcome to Stormhaven, free port of the western coast. Keep your steel sheathed and your coin purse close."','"The harbor council keeps the peace. The tide keeps the rest."']},
-  {x:108,y:221,kind:'sailor',name:'Dockmaster Pell',lines:['"The western piers are for fishing boats. The eastern quay is for merchants. The northern slips are for ships that do not ask questions."']},
-  {x:124,y:221,kind:'adventurer',name:'Guild Scout Renn',lines:['"Stormhaven pays well for maps of the drowned coast. If you find a safe passage, bring it to the Customs House."']},
-  {x:520,y:239,kind:'royalguard',name:'Sunspire Palace Guard',lines:['"You stand in the city of the Golden Veil. Respect the wells, respect the charter, and do not enter the palace armed."']},
-  {x:514,y:242,kind:'nomad',name:'Water-Seller Zuleika',lines:['"Cold water, dates, and shade. Three things worth more than gold beneath this sun."']},
-  {x:527,y:242,kind:'sage',name:'Desert Cartographer Ilyas',lines:['"The Pharaoh\'s tomb is not the oldest thing beneath the sand. It is merely the thing that wants you to notice it."']},
-  {x:365,y:339,kind:'guard',name:'Emberwatch Watch Sergeant',lines:['"This city was built to keep the fire-road open. The bastion to the west guards the pass; we guard the people behind it."']},
-  {x:358,y:342,kind:'ashsmith',name:'Ore-Surveyor Brakka',lines:['"The red seams in the hills are rich with iron. The black seams are rich with trouble."']},
-  {x:372,y:342,kind:'adventurer',name:'Crag Runner Tovin',lines:['"Never climb toward a plume of smoke. It means the mountain is breathing out."']},
-  {x:90,y:119,kind:'guard',name:'Mirewatch Lantern Guard',lines:['"Keep to the raised walks after dusk. The peat is deep enough to swallow a horse."','"If a lantern glows green, turn around. Blue means the wardens are guiding you."']},
-  {x:82,y:122,kind:'merchant',name:'Herbalist Fenna',lines:['"Marsh mint for the stomach, glowcap for the dark, and leechroot for wounds. Do not mix them up."']},
-  {x:98,y:122,kind:'traveler',name:'Pilgrim Osric',lines:['"The old causeway runs beneath the city. At low water you can see its carved stones."']},
-  {x:260,y:279,kind:'guard',name:'Ironhollow Gate-Thane',lines:['"The Deep City is open to honest hands. Keep your pick away from the clan seals."']},
-  {x:254,y:282,kind:'smith',name:'Ore-Master Hilda',lines:['"The black veins carry star-iron. The red veins carry heat. The singing vein carries trouble."']},
-  {x:270,y:282,kind:'adventurer',name:'Tunnel Scout Keld',lines:['"There are galleries below the city that do not appear on any map. Something keeps moving the markers."']},
+  {...MPo(116,219),kind:'guard',name:'Stormhaven Gate Captain',lines:['"Welcome to Stormhaven, free port of the western coast. Keep your steel sheathed and your coin purse close."','"The harbor council keeps the peace. The tide keeps the rest."']},
+  {...MPo(108,221),kind:'sailor',name:'Dockmaster Pell',lines:['"The western piers are for fishing boats. The eastern quay is for merchants. The northern slips are for ships that do not ask questions."']},
+  {...MPo(124,221),kind:'adventurer',name:'Guild Scout Renn',lines:['"Stormhaven pays well for maps of the drowned coast. If you find a safe passage, bring it to the Customs House."']},
+  {...MPo(520,239),kind:'royalguard',name:'Sunspire Palace Guard',lines:['"You stand in the city of the Golden Veil. Respect the wells, respect the charter, and do not enter the palace armed."']},
+  {...MPo(514,242),kind:'nomad',name:'Water-Seller Zuleika',lines:['"Cold water, dates, and shade. Three things worth more than gold beneath this sun."']},
+  {...MPo(527,242),kind:'sage',name:'Desert Cartographer Ilyas',lines:['"The Pharaoh\'s tomb is not the oldest thing beneath the sand. It is merely the thing that wants you to notice it."']},
+  {...MPo(365,339),kind:'guard',name:'Emberwatch Watch Sergeant',lines:['"This city was built to keep the fire-road open. The bastion to the west guards the pass; we guard the people behind it."']},
+  {...MPo(358,342),kind:'ashsmith',name:'Ore-Surveyor Brakka',lines:['"The red seams in the hills are rich with iron. The black seams are rich with trouble."']},
+  {...MPo(372,342),kind:'adventurer',name:'Crag Runner Tovin',lines:['"Never climb toward a plume of smoke. It means the mountain is breathing out."']},
+  {...MPo(90,119),kind:'guard',name:'Mirewatch Lantern Guard',lines:['"Keep to the raised walks after dusk. The peat is deep enough to swallow a horse."','"If a lantern glows green, turn around. Blue means the wardens are guiding you."']},
+  {...MPo(82,122),kind:'merchant',name:'Herbalist Fenna',lines:['"Marsh mint for the stomach, glowcap for the dark, and leechroot for wounds. Do not mix them up."']},
+  {...MPo(98,122),kind:'traveler',name:'Pilgrim Osric',lines:['"The old causeway runs beneath the city. At low water you can see its carved stones."']},
+  {...MPo(260,279),kind:'guard',name:'Ironhollow Gate-Thane',lines:['"The Deep City is open to honest hands. Keep your pick away from the clan seals."']},
+  {...MPo(254,282),kind:'smith',name:'Ore-Master Hilda',lines:['"The black veins carry star-iron. The red veins carry heat. The singing vein carries trouble."']},
+  {...MPo(270,282),kind:'adventurer',name:'Tunnel Scout Keld',lines:['"There are galleries below the city that do not appear on any map. Something keeps moving the markers."']},
   {x:SALT.lx+2,y:SALT.ly+2,kind:'keeper',name:'Orsa the Lightkeeper',lines:['"Two hundred years this light has burned. Not once gone dark. Not on my watch."','"From up top I can see the whole coast. And the thing in the cove that keeps eating my nets."']},
-  {x:SALT.sx-11,y:228,kind:'sailor',name:'Old Tam',lines:['"Best fishing is at the end of the dock. Worst company too, present company included."','"The pearls round here come from the marsh and the drowned. Don\'t ask me how they got there."']},
-  {x:SALT.vx+12,y:231,kind:'netmender',name:'Net-mender Ysa',lines:['"Sirens tangled half my nets last night. Elder Maren wants something done."','"Saltmere was twice this size before the Queen woke."']},
-  {x:331,y:82,kind:'trapper',name:'Ulla the Trapper',lines:['"Frost wolves hunt in packs. Kill the leader and the rest scatter. Mostly."','"Palefang is no ordinary wolf. I\'ve seen it walk through a snowdrift and leave no tracks."']},
-  {x:337,y:82,kind:'bjorn',name:'Bjorn Ironbeard',lines:['"I climbed the summit once. The Titan was sleeping. I came back down very quietly."','"The hot spring east of camp will thaw your bones. Best thing in the whole tundra."']},
-  {x:605,y:168,kind:'nomad',name:'Zahra the Trader',lines:['"Water, steel and stories, friend. Two of those are for sale."']},
-  {x:611,y:168,kind:'sage',name:'Sage Ishaq',lines:['"The Pharaoh was cursed to rule forever. Forever is a long time to be angry."','"Under the sun, all things are revealed. Even the dead."']},
-  {x:608,y:163,kind:'caravan',name:'Captain Rashid',lines:['"Raiders hit three caravans this month. The Guild won\'t come out this far. So I\'m asking you."','"The Scorpion Queen nests north-east of here. Even the raiders steer clear."']},
-  {x:297,y:324,kind:'ashsmith',name:'Forgemaster Korrum'},
-  {x:303,y:324,kind:'priestess',name:'Vela of the Ash',lines:['"The mountain is alive. Ignarax is its heart. When she stirs, the ground bleeds."','"Imps steal the embers from our fires. Little thieves."']},
-  {x:438,y:152,kind:'hermit',name:'Brother Aldous',lines:['"I came here for silence. The wraiths came for the same reason, it seems."','"The lake reflects the sky so perfectly that on still nights I forget which way is up."']},
+  {x:SALT.sx-11,y:228+DY,kind:'sailor',name:'Old Tam',lines:['"Best fishing is at the end of the dock. Worst company too, present company included."','"The pearls round here come from the marsh and the drowned. Don\'t ask me how they got there."']},
+  {x:SALT.vx+12,y:231+DY,kind:'netmender',name:'Net-mender Ysa',lines:['"Sirens tangled half my nets last night. Elder Maren wants something done."','"Saltmere was twice this size before the Queen woke."']},
+  {...MPo(331,82),kind:'trapper',name:'Ulla the Trapper',lines:['"Frost wolves hunt in packs. Kill the leader and the rest scatter. Mostly."','"Palefang is no ordinary wolf. I\'ve seen it walk through a snowdrift and leave no tracks."']},
+  {...MPo(337,82),kind:'bjorn',name:'Bjorn Ironbeard',lines:['"I climbed the summit once. The Titan was sleeping. I came back down very quietly."','"The hot spring east of camp will thaw your bones. Best thing in the whole tundra."']},
+  {...MPo(605,168),kind:'nomad',name:'Zahra the Trader',lines:['"Water, steel and stories, friend. Two of those are for sale."']},
+  {...MPo(611,168),kind:'sage',name:'Sage Ishaq',lines:['"The Pharaoh was cursed to rule forever. Forever is a long time to be angry."','"Under the sun, all things are revealed. Even the dead."']},
+  {...MPo(608,163),kind:'caravan',name:'Captain Rashid',lines:['"Raiders hit three caravans this month. The Guild won\'t come out this far. So I\'m asking you."','"The Scorpion Queen nests north-east of here. Even the raiders steer clear."']},
+  {...MPo(297,324),kind:'ashsmith',name:'Forgemaster Korrum'},
+  {...MPo(303,324),kind:'priestess',name:'Vela of the Ash',lines:['"The mountain is alive. Ignarax is its heart. When she stirs, the ground bleeds."','"Imps steal the embers from our fires. Little thieves."']},
+  {x:438+DX,y:152+DY,kind:'hermit',name:'Brother Aldous',lines:['"I came here for silence. The wraiths came for the same reason, it seems."','"The lake reflects the sky so perfectly that on still nights I forget which way is up."']},
   {x:OX+25,y:OY+TH+8,kind:'peddler',name:'Fennick the Peddler'},
   {x:PL('serai').x-2,y:PL('serai').y+1,kind:'hadi',name:'Old Hadi'},
   {x:PL('djinn').x,y:PL('djinn').y+1,kind:'djinn',name:'Zephyrah the Djinn',lines:['"Ah, a visitor! Do you wish for riches? Power? A sandwich? I am out of wishes, but I can listen to yours."','"Ten thousand years in a lamp gives you perspective. Mostly about lamps."']},
   {x:PL('sandship').x+3,y:PL('sandship').y+2,kind:'traveler',name:'Sand Sailor Imra',lines:['"The Dune Strider sailed the sand on runner-blades. A storm flipped her. I still dream about the wind."','"Some say the desert was a sea once. The bones at the Bonefield say they\'re right."']},
   {x:PL('ashkar').x+2,y:PL('ashkar').y+3,kind:'sage',name:'Scholar Benno',lines:['"Ashkar was the jewel of the old kings. Now it\'s a sandbox with very expensive rubble."','"I found a sealed vault near the statue. My shovel broke. Perhaps yours won\'t."']},
-  ...Object.values(FORTS).map(F=>{const p=PLACES.find(q=>q.b==='fort'&&FORTS[q.f]===F);return {x:p.x-3,y:p.y-4,kind:'prisoner',name:F.pr.replace(/^A /,'').replace(/^./,c=>c.toUpperCase()),when:()=>S.bossDown.includes(F.boss[3]),lines:['"Free! You actually did it! I owe you my life."','"The war chest is right there. Take it, you\'ve earned it."']}}),
+  ...Object.values(FORTS).map(F=>{const p=PLACES.find(q=>q.b==='fort'&&FORTS[q.f]===F);return {x:p.x-3,y:p.y-2,kind:'prisoner',name:F.pr.replace(/^A /,'').replace(/^./,c=>c.toUpperCase()),when:()=>S.bossDown.includes(F.boss[3]),lines:['"Free! You actually did it! I owe you my life."','"The war chest is right there. Take it, you\'ve earned it."']}}),
   {x:PL('chapel').x,y:PL('chapel').y+1,kind:'ghost',name:'Father Odran',lines:['"The tide took my chapel, my flock, and finally me. I keep the candles lit anyway."','"Something holy is still locked in the reliquary. Its guardian will not let me rest, nor you pass, without a fight."']},
   {x:PL('smuggle').x+1,y:PL('smuggle').y+2,kind:'smuggler',name:'Vex'},
   {x:PL('hamlet').x+1,y:PL('hamlet').y+3,kind:'skald',name:'Sigrun the Skald',lines:['"Sit, stranger! I will sing you the Saga of Ymrir. It has forty verses. Thirty-nine are about the cold."','"The mead hall is shut, but my voice is always open."']},
@@ -1136,7 +1252,7 @@ MAPS.world.npcs.push(
   {x:CX+55,y:CY+23,kind:'adventurer',name:'Sellsword',lines:['"Bring your loot to the alchemist or the forge. Raw parts are worth more crafted."','"The crypt under the cathedral is no place for the weak. I\'d know. I ran."']});
 for(const k in MAPS){const M=MAPS[k];M.h=M.tiles.length;M.w=M.tiles[0].length;M.npcs=M.npcs||[];
   if(!M.outdoor)M.tiles.forEach((r,y)=>{for(let x=0;x<r.length;x++)if(r[x]==='K')M.npcs.push({x,y,kind:M.keeper})})}
-const OUT_SOLID=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q');
+const OUT_SOLID=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q£øç');
 const bossAt=(x,y)=>BOSSES.find(b=>(b.map||'world')===S.map&&b.x===x&&b.y===y&&!S.bossDown.includes(b.id));
 const IN_SOLID=new Set('#123456789 CKBQnbxsTcMWSPAYFGVLOHzuE~I');
 let BRK={};
@@ -1657,18 +1773,25 @@ function load(){
     if(s.map==='town'){n.map='world';n.x=s.x+OX;n.y=s.y+OY}else if(s.map==='field'||!MAPS[s.map]){n.map='world';n.x=OX+46;n.y=OY+15}return n}}catch(e){}
   try{const o=JSON.parse(localStorage.getItem(OLD));if(o&&o.st){const s=NEW();['lv','xp','gold','hp','mp','st','pts','bag','wpn','arm','time','kills'].forEach(k=>{if(o[k]!==undefined)s[k]=o[k]});return s}}catch(e){}
   return null}
-let fresh=false, S=load(); if(!S){S=NEW();S.wv=3;S.map='inn';S.x=6;S.y=12;S.dir='up';fresh=true}
+let fresh=false, S=load(); if(!S){S=NEW();S.wv=4;S.map='inn';S.x=6;S.y=12;S.dir='up';fresh=true}
 if(S.min===undefined){S.min=S.time==='night'?21*60:8*60;S.day=S.day||0}
 S.bag=Object.assign({potion:0,hipotion:0,ether:0,elixir:0,flask:0,smoke:0},S.bag);initGear();S.broken=S.broken||{};S.ko=S.ko||[];
 if(S.wv!==3){const scaled=S.wv===2,mv=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);return k.slice(0,i+1)+(x+OFX)+','+(y+OFY)};
   if(S.map==='world'){if(scaled){S.x=OX+7;S.y=OY+11}else{S.x+=OFX;S.y+=OFY}}
   const nb={};for(const k in S.broken){if(!k.startsWith('world:'))nb[k]=S.broken[k];else if(!scaled)nb[mv(k)]=S.broken[k]}S.broken=nb;
   S.relics=(S.relics||[]).map(id=>{const R=RELIQ.find(r=>r.ox!==undefined&&(scaled?Math.round(r.ox*Math.sqrt(5))+','+Math.round(r.oy*Math.sqrt(5)):r.ox+','+r.oy)===id);return R?R.x+','+R.y:id});
-  S.searched=(S.searched||[]).map(String).filter(k=>!(scaled&&k.startsWith('world:'))).map(k=>!scaled&&k.startsWith('world:')?mv(k):k);S.wv=3}
+  S.searched=(S.searched||[]).map(String).filter(k=>!(scaled&&k.startsWith('world:'))).map(k=>!scaled&&k.startsWith('world:')?mv(k):k);S.wv=4}
+if(S.wv===3){// the world got bigger: move the saved position and per-tile records onto the new map
+  const mk=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);const [a,b]=MP(x,y);return k.slice(0,i+1)+a+','+b};
+  if(S.map==='world'){const [a,b]=MP(S.x,S.y);S.x=a;S.y=b}
+  const nb={};for(const k in S.broken)nb[k.startsWith('world:')?mk(k):k]=S.broken[k];S.broken=nb;
+  S.searched=(S.searched||[]).map(String).map(k=>k.startsWith('world:')?mk(k):k);
+  S.relics=(S.relics||[]).map(id=>{const R=RELIQ.find(r=>(r.v3||(r.ox!==undefined?(r.ox+OFX0)+','+(r.oy+OFY0):''))===id);return R?R.x+','+R.y:id});S.wv=4}
 let ULTNEW=false;if(!S.ult){S.ult=1;grantUltimate();ULTNEW=true}
 if(!S.hp){S.hp=maxHP();S.mp=maxMP()}
 const P={x:S.x,y:S.y,fx:S.x,fy:S.y,t:1,moving:false,dir:S.dir,step:0,enc:0};
-if(isSolid(P.x,P.y)){S.map='world';P.x=P.fx=OX+7;P.y=P.fy=OY+11}
+if(isSolid(P.x,P.y)){let f=null;if(S.map==='world')for(let r=1;r<8&&!f;r++)for(let dy=-r;dy<=r&&!f;dy++)for(let dx=-r;dx<=r;dx++)if(!isSolid(P.x+dx,P.y+dy)){f=[P.x+dx,P.y+dy];break}
+  if(f){P.x=P.fx=f[0];P.y=P.fy=f[1]}else{S.map='world';P.x=P.fx=OX+7;P.y=P.fy=OY+11}}
 function save(){try{S.x=P.x;S.y=P.y;S.dir=P.dir;localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 function placePlayer(x,y,d){P.x=P.fx=x;P.y=P.fy=y;P.dir=d;P.moving=false;P.t=1;P.enc=0}
 let scene='explore', B=null, T=0, fading=false, DARK=0, DARKC=[9,13,42], lastArea='', AREA=null;
@@ -1676,6 +1799,9 @@ const held=[];
 
 /* =================== HUD / UI =================== */
 function areaName(){if(S.map!=='world')return MAPS[S.map].name;const z=ZONE[P.y]?ZONE[P.y][P.x]:0;
+  {const mi=MI[P.y*WW+P.x];if(mi){const m=MOUNTS[mi-1];return Math.hypot(P.x-m.x,P.y-m.y)<3?m.n+' Summit':m.n}
+   for(const c of PLACES)if(c.b==='city'&&Math.abs(P.x-c.x)<=28&&Math.abs(P.y-c.y)<=19)return c.n.split(',')[0];
+   if(P.x>=HARBOR.bx0-3&&P.x<=HARBOR.bx1+4&&P.y>=HARBOR.qy0&&P.y<=HARBOR.by1)return 'Stormhaven Harbor'}
   if(z===7){let b=SITES[0],bd=1e9;for(const st of SITES){const d=Math.hypot(P.x-st.x,P.y-st.y);if(d<bd){bd=d;b=st}}return b.n}
   if(z>=8){for(const st of NSITES)if(Math.hypot(P.x-st.x,P.y-st.y)<st.r)return st.n;return ['Frostpeak Tundra','Emberfall Wastes','Sunscorch Desert','The Stormcoast'][z-8]}
   if(z===0){if(P.x>176+OFX&&P.y<62+OFY&&P.y>=OFY&&P.x<320+OFX)return 'Mirror Lake';if(Math.hypot(P.x-70-OFX,P.y-100-OFY)<8)return "Hunter's Camp";if(P.x>=102+OFX&&P.x<=142+OFX&&P.y>=106+OFY&&P.y<=118+OFY)return 'Hollowmere Farms';return 'Open Fields'}
@@ -2368,7 +2494,7 @@ function heathG(X,Y,x,y){cx.fillStyle='#6f7a46';cx.fillRect(X,Y,TS,TS);for(let i
 function caveG(X,Y,x,y){cx.fillStyle='#5f5a52';cx.fillRect(X,Y,TS,TS);cx.fillStyle='#0a0808';cx.beginPath();cx.moveTo(X+2,Y+32);cx.lineTo(X+2,Y+12);cx.quadraticCurveTo(X+16,Y-2,X+30,Y+12);cx.lineTo(X+30,Y+32);cx.fill();
   for(let i=0;i<4;i++){const c=60-i*12;cx.fillStyle=`rgb(${c},${c-4},${c-8})`;cx.fillRect(X+6+i,Y+28-i*5,20-i*2,4)}cx.fillStyle='rgba(255,240,200,.75)';const o=Math.sin(T*4)*2;tri(X+11,Y+10+o,X+21,Y+10+o,X+16,Y+17+o);
   cx.strokeStyle='#8a847a';cx.lineWidth=3;cx.beginPath();cx.moveTo(X+2,Y+32);cx.lineTo(X+2,Y+12);cx.quadraticCurveTo(X+16,Y-2,X+30,Y+12);cx.lineTo(X+30,Y+32);cx.stroke()}
-function groundOut(t,X,Y,x,y){if(t==='V'){caveG(X,Y,x,y);return}
+function groundOut(t,X,Y,x,y){if(t==='µ'){mtnG(X,Y,x,y);return}if(t==='V'){caveG(X,Y,x,y);return}
   if(t==='*'){snowG(X,Y,x,y);return}if(t==='i'){iceG(X,Y,x,y);return}if(t==='a'){ashG(X,Y,x,y);return}if(t==='l'){lavaG(X,Y,x,y);return}if(t==='D'){duneG(X,Y,x,y);return}if(t==='h'){heathG(X,Y,x,y);return}
   if(t==='M'){marshG(X,Y,x,y);return} if(t==='o'){bog(X,Y,x,y);return} if(t==='g'){gravel(X,Y,x,y);return} if(t==='u'){flag(X,Y,x,y);return}
   if(t==='d'||t==='y'){forestFloor(X,Y,x,y,t==='y');return} if(t==='~'){trail(X,Y,x,y);return} if(t==='s'){sand(X,Y,x,y);return} if(t==='B'){bridge(X,Y,x,y);return}
@@ -2635,9 +2761,9 @@ function drawBow(c,by,dir){const lf=dir==='left'||dir==='up',ac=lf?c+4:c-4,sx=lf
 const HMET=['#c9d0d8','#8ab8ff','#c9a0ff','#ffc060','#ff6a5a','#ff7ad8'];
 function drawHeld(c,by,dir,it,off){if(!it)return;const b=it.b,mt=HMET[it.r]||HMET[0],wd='#6b4426',gd='#c9952f';
   const front=dir==='down'||dir==='right'?!off:off,side=dir==='left'?-1:dir==='right'?1:(off?1:-1)*(dir==='up'?-1:1);
-  const hx=dir==='left'||dir==='right'?c+(off?-side*5:side*6):c+side*8,hy=by-10;
+  const sv=dir==='left'||dir==='right',near=dir==='right'?!off:off,hx=sv?c+side*(near?5:1):c+side*8,hy=by-10;
   if(b==='bow'){drawBow(c,by,dir);return}
-  if(b==='shield'){const sx=dir==='left'||dir==='right'?c+(dir==='left'?-8:8):hx,w=dir==='left'||dir==='right'?4:8;cx.fillStyle='#3a2616';cx.beginPath();cx.moveTo(sx-w,hy-8);cx.lineTo(sx+w,hy-8);cx.lineTo(sx+w,hy+1);cx.lineTo(sx,hy+6);cx.lineTo(sx-w,hy+1);cx.closePath();cx.fill();
+  if(b==='shield'){const sx=dir==='left'||dir==='right'?c+side*(near?7:1):hx,w=dir==='left'||dir==='right'?4:8;cx.fillStyle='#3a2616';cx.beginPath();cx.moveTo(sx-w,hy-8);cx.lineTo(sx+w,hy-8);cx.lineTo(sx+w,hy+1);cx.lineTo(sx,hy+6);cx.lineTo(sx-w,hy+1);cx.closePath();cx.fill();
     cx.fillStyle=mt;cx.beginPath();cx.moveTo(sx-w+1,hy-7);cx.lineTo(sx+w-1,hy-7);cx.lineTo(sx+w-1,hy+.5);cx.lineTo(sx,hy+4.6);cx.lineTo(sx-w+1,hy+.5);cx.closePath();cx.fill();cx.fillStyle=gd;cx.fillRect(sx-.8,hy-6,1.6,9);return}
   const tilt=side*.18;cx.save();cx.translate(hx,hy);cx.rotate(tilt);
   const blade=(len,w)=>{cx.fillStyle=mt;cx.fillRect(-w/2,-len-2,w,len);cx.beginPath();cx.moveTo(-w/2,-len-2);cx.lineTo(0,-len-4-w*.6);cx.lineTo(w/2,-len-2);cx.fill();cx.fillStyle='rgba(255,255,255,.45)';cx.fillRect(-w/2,-len-2,w/2.5,len)};
@@ -2695,7 +2821,7 @@ function worldPos(){if(S.map==='world'){WPOS=[P.x,P.y];return WPOS}if(WPOS)retur
   const b=BUILDINGS.find(b=>b.to&&b.to.map===S.map);if(b)return [b.door,b.y+b.h];
   const d=DUNGS.find(d=>d.k===S.map);if(d)return [d.x,d.y];return null}
 const mmc=document.createElement('canvas');mmc.width=WW;mmc.height=WH;const mmx=mmc.getContext('2d');
-(function buildMinimap(){const col=(x,y)=>{const g=WORLD.ground[y][x],o=WORLD.obj[y][x],z=ZONE[y][x];
+(function buildMinimap(){const col=(x,y)=>{const g=WORLD.ground[y][x],o=WORLD.obj[y][x],z=ZONE[y][x];if(g==='µ'){const c=mtnCols(y*WW+x);return o==='£'?c[1]:'#c9b48a'}
     if(g==='V')return '#0a0808';if(g==='w')return '#35699c';if(g==='*')return o==='1'?'#3f5f4a':o==='C'?'#9aa4ac':'#e8eef2';if(g==='i')return '#bfe0f0';if(g==='a')return o==='3'?'#1e1a1a':'#4a4244';if(g==='l')return '#e0602a';if(g==='D')return '#d9b56a';if(g==='h')return o==='T'?'#2f5a2a':'#7f8452';if(g==='o')return '#3c5a48';if(g==='B')return '#8a5a34';if(g==='s')return '#cbb683';if(g==='W'||o==='Z')return '#5f5850';
     if(g==='='||g==='~')return '#b39a6a';if(g==='#')return '#9a9286';if(o==='H'||o==='U')return '#a0522d';
     if(o==='C')return '#5a544c';if(o==='K')return '#132016';if(o==='T'||o==='I')return '#2f5a2a';if(o==='X'||o==='p'||o==='Q')return '#9c9488';
@@ -2707,10 +2833,10 @@ function mapMarkers(){const out=[];
   return out}
 let MZ=1,MCX=WW/2,MCY=WH/2,MBTN=[];
 const MAPLBL=()=>{const o=(t,a,b2)=>[t,a+OFX,b2+OFY];return [
-  ['Frostpeak Tundra',430,70,0],['The Stormcoast',110,170,0],['Sunscorch Desert',625,215,0],['Emberfall Wastes',470,328,0],['Hollowmere',OX+22,OY-4,0],['Aldermoor',CX+31,CY-6,0],
+  ['Frostpeak Tundra',MX(430),MY(70),0],['The Stormcoast',MX(80),MY(250),0],['Sunscorch Desert',MX(650),MY(215),0],['Emberfall Wastes',MX(470),MY(328),0],['Hollowmere',OX+22,OY-4,0],['Aldermoor',CX+31,CY-6,0],
   ...[o("Dragon's Roost",288,10),o('Tomb of Malgorath',40,6),o('Sunken Sanctum',40,172),o('The Darkwood',50,46),o('Murkfen Marsh',52,128),o('Ashen Crags',200,148),o('Ruins of Varn',150,22),o('Mirror Lake',205,40),o('Open Fields',170,110)].map(q=>[...q,1]),
-  ['Saltmere',SALT.vx+18,246,1],['Oasis of Qadim',600,138,1],['Wolfsbane Camp',334,92,1],['Ashwalker Camp',300,334,1],
-  ...[o("Hunter's Camp",70,110),['Gull Point',SALT.lx,150],['Sphinx of Qadim',650,262],['Hot Spring',480,100],['Obsidian Spires',472,352],['Wreck of the Merry Widow',SALT.sx+3,284],['Gullcliff Camp',140,200],["Hermit's Shore",437,160],['Tidewatch Isle',GRIMS.find(g=>g.id==='renew').x,308]].map(q=>[...q,2]),
+  ['Saltmere',SALT.vx+18,246+DY,1],['Oasis of Qadim',...MP(600,138),1],['Wolfsbane Camp',...MP(334,92),1],['Ashwalker Camp',...MP(300,334),1],
+  ...[o("Hunter's Camp",70,110),['Gull Point',SALT.lx,150+DY],['Sphinx of Qadim',...MP(650,262)],['Hot Spring',...MP(480,100)],['Obsidian Spires',...MP(472,352)],['Wreck of the Merry Widow',SALT.sx+3,284+DY],['Gullcliff Camp',...MP(140,200)],["Hermit's Shore",437+DX,160+DY],['Tidewatch Isle',GRIMS.find(g=>g.id==='renew').x,GRIMS.find(g=>g.id==='renew').y+8]].map(q=>[...q,2]),
   ...PLACES.map(p=>[p.n,p.x,p.y+p.r*.6,2])]};
 function mapView(){const big=MMODE===2,bw=W-30,bh=H-84,base=Math.min(bw/WW,bh/WH),sc=base*MZ,vw=bw/sc,vh=bh/sc;
   MCX=clamp(MCX,Math.min(WW/2,vw/2),Math.max(WW/2,WW-vw/2));MCY=clamp(MCY,Math.min(WH/2,vh/2),Math.max(WH/2,WH-vh/2));
@@ -2841,7 +2967,7 @@ function drawObj(m,o,X,Y,x,y,night){switch(o){
   case '!':sprite('!'+ZONE[y][x],0,X,Y,(a,b)=>totem(a,b,ZONE[y][x]));break;
   case '+':banner(X,Y,ZONE[y][x],x);break;
   case '@':waystone(X,Y,!!(S.ways&&S.ways.includes((wayAt(x,y)||{}).id)));break;
-  case 'Z':tower(X,Y);break;case 'Y':willow(X,Y,x);break;case 'j':campfire(X,Y);break;case 'V':windmill(X,Y);break;case 'e':sheep(X,Y,x,y);break}}
+  case '£':mtnDeco(X,Y,x,y);break;case 'ø':sprite('cairn',1,X,Y,(a,b)=>cairn(a,b));break;case 'ç':crane(X,Y);break;case 'Z':tower(X,Y);break;case 'Y':willow(X,Y,x);break;case 'j':campfire(X,Y);break;case 'V':windmill(X,Y);break;case 'e':sheep(X,Y,x,y);break}}
 function drawFurn(m,t,X,Y,x,y){const ol=OUTL_IN.has(t)?1:0,L=c=>tileAt(m,x-1,y)===c?1:0,R=c=>tileAt(m,x+1,y)===c?1:0;let key;
   switch(t){case 'G':case 'V':case 'n':case 'A':furniture(t,X,Y,x,y,m);return;
     case 'T':if(hash(x,y,5)>=.5){furniture(t,X,Y,x,y,m);return}key='Tb';break;
@@ -2861,11 +2987,13 @@ function renderExplore(dt){
   const CS=RS,C8=CHK*TS;
   for(let cj=Math.floor(y0/CHK);cj<=Math.floor(y1/CHK);cj++)for(let ci=Math.floor(x0/CHK);ci<=Math.floor(x1/CHK);ci++)cx.drawImage(chunk(m,ci,cj,CS),ci*C8,cj*C8,C8,C8);
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const t=tileAt(m,x,y);if(animG(M,m,t,x,y))groundTile(m,M,t,x*TS,y*TS,x,y,night);else if(M.outdoor&&t==='w')waterFx(m,x*TS,y*TS,x,y)}
+  if(m==='world')fleetFrame(x0,x1,y0,y1+6);
   const prow=P.moving?Math.max(P.y,P.fy):P.y,walk=P.moving?(P.t<.5?1:-1)*(P.step%2?1:-1):0;
   for(let y=y0;y<=Math.min(M.h-1,y1+8);y++){
     if(y<=y1+1)for(let x=x0;x<=x1;x++){let X=x*TS;const Y=y*TS;if(SHAKE.size){const sk=SHAKE.get(m+':'+x+','+y);if(sk)X+=Math.sin(T*70)*3*sk/.25}
       if(M.outdoor)drawObj(m,objAt(m,x,y),X,Y,x,y,night);else{const t=tileAt(m,x,y);if(FURNSET.has(t))drawFurn(m,t,X,Y,x,y)}}
     if(m==='world')for(const b of BUILDINGS)if(b.y+b.h-1===y&&b.x+b.w>=x0&&b.x<=x1)drawBuildingCached(b,night);
+    if(m==='world')drawShipsRow(y);
     for(const mb of MOBS)if(mb.map===m&&(mb.moving?Math.max(mb.y,mb.fy):mb.y)===y&&mb.x>=x0-2&&mb.x<=x1+2)drawMob(mb);
     for(const n of M.npcs)if((n.moving?Math.max(n.y,n.fy):n.y)===y&&n.x>=x0-1&&n.x<=x1+1&&!n.hidden&&(!n.when||n.when())&&!isKO(n)){const nx=n.moving?(n.fx+(n.x-n.fx)*n.t)*TS:n.x*TS,ny=n.moving?(n.fy+(n.y-n.fy)*n.t)*TS:n.y*TS;if(n.kind==='cat')drawCat(nx,ny);else drawPerson(nx,ny+(n.moving?0:Math.sin(T*2+n.x)*.6),PEOPLE[n.kind],n.dir||'down',n.moving?(n.t<.5?1:-1)*(n.step%2?1:-1):0);const mk=qMark(n.kind);if(mk)drawMark(nx+16,ny-14,mk)}
     for(const b of BOSSES)if((b.map||'world')===m&&b.y===y&&!S.bossDown.includes(b.id)&&b.x>=x0-2&&b.x<=x1+2){const bx=b.x*TS+16,by=b.y*TS+30,p=.5+.5*Math.sin(T*3);
@@ -4176,6 +4304,160 @@ function inkOutline(c,sc){const s2=document.createElement('canvas');s2.width=c.w
 let GRADE=null;
 function paintGrade(){cx.save();cx.setTransform(cx.getTransform());cx.globalCompositeOperation='soft-light';cx.fillStyle='rgba(255,222,165,.18)';cx.fillRect(0,0,W,H);cx.globalCompositeOperation='source-over';
   if(!GRADE){GRADE=cx.createRadialGradient(W/2,H/2,H*.38,W/2,H/2,H*.95);GRADE.addColorStop(0,'rgba(30,18,8,0)');GRADE.addColorStop(1,'rgba(30,18,8,.3)')}cx.fillStyle=GRADE;cx.fillRect(0,0,W,H);cx.restore()}
+
+/* Shading helpers used by the mountain, harbor-crane and ship drawing below */
+const SHD=new Map();
+function shd(h,f){const k=h+'|'+f;let r=SHD.get(k);if(r)return r;const A=rgbOf(h),t=f<0?0:255,a=Math.abs(f);
+  r=`rgb(${A[0]+(t-A[0])*a|0},${A[1]+(t-A[1])*a|0},${A[2]+(t-A[2])*a|0})`;SHD.set(k,r);return r}
+const INK='rgba(28,16,8,.9)';
+function ink(w=1,c=INK){cx.strokeStyle=c;cx.lineWidth=w;cx.stroke()}
+function hg(x0,x1,col,lt=.2,dk=-.32){const g=cx.createLinearGradient(x0,0,x1,0);g.addColorStop(0,shd(col,lt));g.addColorStop(.45,col);g.addColorStop(1,shd(col,dk));return g}
+function vg(y0,y1,col,lt=.15,dk=-.25){const g=cx.createLinearGradient(0,y0,0,y1);g.addColorStop(0,shd(col,lt));g.addColorStop(1,shd(col,dk));return g}
+
+/* =================== MOUNTAINS ===================
+   Terraced rock painted from a height map: each level gets its own colour
+   (foothill green to bare rock to snow), a sunlit lip and a shadowed cliff
+   face where it drops to the level below. Trails are worn into the rock and
+   climb the faces as stairs. */
+function hexRGB(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+function mixh(a,b,t){const A=hexRGB(a),B=hexRGB(b);t=t<0?0:t>1?1:t;const h=n=>('0'+Math.round(n).toString(16)).slice(-2);return '#'+h(A[0]+(B[0]-A[0])*t)+h(A[1]+(B[1]-A[1])*t)+h(A[2]+(B[2]-A[2])*t)}
+const isTrail=(x,y)=>MI[y*WW+x]&&objAt('world',x,y)!=='£';
+function mtnCols(i){const m=MOUNTS[MI[i]-1],P=MPAL[m.pal],s=MH[i]/m.L;if(s>=P.snow)return ['#c6d0d7','#dfe7ec','#f4f8fa'];return [0,1,2].map(k=>mixh(mixh(P.lo[k],P.hi[k],Math.min(1,s*1.15-.1)),'#000000',(1-s)*.22))}
+function lt(h,f){return f>=0?mixh(h,'#ffffff',f):mixh(h,'#000000',-f)}
+function mtnLit(x,y){const m=MOUNTS[MI[y*WW+x]-1];return Math.max(-.22,Math.min(.22,-(x-m.x)/m.R*.18-(y-m.y)/m.R*.08))}
+function trailBlob(X,Y,x,y,col,grow){const r=11+grow,w=22+grow*2;cx.fillStyle=col;cx.beginPath();cx.ellipse(X+16,Y+16,r,r*.9,0,0,7);cx.fill();
+  if(isTrail(x,y-1))cx.fillRect(X+16-w/2,Y-1,w,17);if(isTrail(x,y+1))cx.fillRect(X+16-w/2,Y+16,w,17);if(isTrail(x-1,y))cx.fillRect(X-1,Y+16-w/2*.9,17,w*.9);if(isTrail(x+1,y))cx.fillRect(X+16,Y+16-w/2*.9,17,w*.9);
+  for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]])if(isTrail(x+dx,y)&&isTrail(x,y+dy)&&isTrail(x+dx,y+dy))cx.fillRect(dx<0?X-1:X+16,dy<0?Y-1:Y+16,17,17)}
+function mtnG(X,Y,x,y){const i=y*WW+x,h=MH[i],m=MOUNTS[MI[i]-1],P=MPAL[m.pal],sn=h/m.L>=P.snow,lit=mtnLit(x,y),c=mtnCols(i).map(q=>lt(q,lit)),tr=isTrail(x,y);
+  const hN=MH[i-WW]||0,hS=MH[i+WW]||0,hW=MH[i-1]||0,hE=MH[i+1]||0;
+  paintBase(X,Y,x,y,c[0],c[1],c[2],81+h,2.6);
+  if(sn){for(let k=0;k<3;k++){cx.fillStyle=k%2?'rgba(255,255,255,.55)':'rgba(150,175,205,.3)';ell(X+5+hash(x,y,705+k)*22,Y+6+hash(x,y,706+k)*18,5+hash(x,y,707+k)*5,1.8)}}
+  else{// rock plates
+    for(let k=0;k<4;k++){const px=X+3+hash(x,y,720+k)*24,py=Y+3+hash(x,y,730+k)*22,rw=4+hash(x,y,740+k)*6,rh=3+hash(x,y,750+k)*4,v=(hash(x,y,760+k)-.5)*.2;
+      cx.fillStyle=shd(c[1],v);cx.beginPath();cx.moveTo(px-rw,py);cx.lineTo(px-rw*.4,py-rh);cx.lineTo(px+rw*.6,py-rh*.8);cx.lineTo(px+rw,py+rh*.2);cx.lineTo(px+rw*.2,py+rh);cx.lineTo(px-rw*.7,py+rh*.7);cx.closePath();cx.fill();
+      cx.strokeStyle='rgba(35,28,22,.35)';cx.lineWidth=.8;cx.stroke();cx.fillStyle='rgba(255,250,235,.25)';cx.fillRect(px-rw*.4,py-rh+.5,rw,1)}
+    if(P.strata){cx.strokeStyle='rgba(120,55,30,.32)';cx.lineWidth=1;for(let k=0;k<3;k++){const yy=Y+6+k*9+(h*3)%5;cx.beginPath();cx.moveTo(X,yy);cx.quadraticCurveTo(X+16,yy+(hash(x,k,5)-.5)*4,X+TS,yy);cx.stroke()}}
+    if(h/m.L<.5&&m.pal!=='basalt'&&m.pal!=='mesa'){for(let k=0;k<4;k++){if(hash(x,y,780+k)<.45)continue;cx.fillStyle=k%2?'rgba(96,140,62,.55)':'rgba(120,160,80,.5)';ell(X+3+hash(x,y,790+k)*26,Y+3+hash(x,y,800+k)*24,3+hash(x,y,810+k)*3,2)}}}
+  if(tr){trailBlob(X,Y,x,y,shd(P.trail,-.3),2);trailBlob(X,Y,x,y,shd(P.trail,lit*.6),0);
+    for(let k=0;k<5;k++){cx.fillStyle=k%2?shd(P.trail,-.22):shd(P.trail,.16);ell(X+7+hash(x,y,820+k)*18,Y+7+hash(x,y,830+k)*18,1.7,1.1)}}
+  if(hN>h){const g=cx.createLinearGradient(0,Y,0,Y+12);g.addColorStop(0,'rgba(20,16,26,.45)');g.addColorStop(1,'rgba(20,16,26,0)');cx.fillStyle=g;cx.fillRect(X,Y,TS,12)}
+  if(hW<h){cx.fillStyle='rgba(255,250,235,.32)';cx.fillRect(X,Y,3,TS);cx.fillStyle='rgba(30,22,16,.55)';cx.fillRect(X,Y,1.2,TS)}
+  if(hE<h){const g=cx.createLinearGradient(X+TS-9,0,X+TS,0);g.addColorStop(0,'rgba(20,15,25,0)');g.addColorStop(1,'rgba(20,15,25,.5)');cx.fillStyle=g;cx.fillRect(X+TS-9,Y,9,TS);cx.fillStyle='rgba(30,22,16,.55)';cx.fillRect(X+TS-1.2,Y,1.2,TS)}
+  if(hS<h){const fh=Math.min(32,26+(h-hS-1)*6),fy=Y+TS-fh,face=lt(P.face,lit*.8);
+    const g=cx.createLinearGradient(0,fy,0,Y+TS);g.addColorStop(0,shd(face,.22));g.addColorStop(.35,face);g.addColorStop(1,shd(face,-.38));cx.fillStyle=g;cx.fillRect(X,fy,TS,fh);
+    cx.lineWidth=1.3;for(let k=0;k<6;k++){const sx=X+1+k*5.6+hash(x,y,840+k)*3;cx.strokeStyle=k%2?'rgba(20,15,12,.5)':'rgba(255,245,225,.2)';cx.beginPath();cx.moveTo(sx,fy+2+hash(x,y,850+k)*5);cx.lineTo(sx+(hash(x,y,860+k)-.5)*4,Y+TS-1);cx.stroke()}
+    for(let k=0;k<2;k++){const by2=fy+6+hash(x,y,870+k)*(fh-10);cx.strokeStyle='rgba(20,15,12,.45)';cx.lineWidth=1;cx.beginPath();cx.moveTo(X,by2);cx.lineTo(X+TS,by2+(hash(x,y,880+k)-.5)*4);cx.stroke()}
+    if(P.strata){cx.fillStyle='rgba(240,180,130,.28)';cx.fillRect(X,fy+fh*.45,TS,2)}
+    if(sn){cx.fillStyle='#eef3f6';for(let k=0;k<4;k++){const sx=X+k*8+hash(x,y,890+k)*3;tri(sx,fy-1,sx+8,fy-1,sx+3+hash(x,y,900+k)*2,fy+4+hash(x,y,910+k)*8)}}
+    if(tr&&(isTrail(x,y+1)||!MI[i+WW])){const n=Math.max(3,Math.round(fh/7)),sh=fh/n,sw=22;for(let k=0;k<n;k++){const yy=fy+k*sh;cx.fillStyle=shd(P.trail,-.32);cx.fillRect(X+16-sw/2,yy,sw,sh);cx.fillStyle=shd(P.trail,.1);cx.fillRect(X+16-sw/2,yy,sw,2.2)}
+      cx.strokeStyle='rgba(40,28,18,.7)';cx.lineWidth=1.1;cx.strokeRect(X+16-sw/2,fy,sw,fh);}
+    cx.fillStyle=sn?'rgba(255,255,255,.85)':'rgba(255,248,228,.45)';cx.fillRect(X,fy-2,TS,2.2);cx.fillStyle='rgba(25,18,12,.75)';cx.fillRect(X,fy-.2,TS,1.4)}
+  if(P.glow&&h>=m.L-1&&hash(x,y,920)<.4){cx.strokeStyle='rgba(255,120,40,.75)';cx.lineWidth=1.5;const sx=X+6+hash(x,y,921)*18;cx.beginPath();cx.moveTo(sx,Y+6);cx.lineTo(sx+5,Y+14);cx.lineTo(sx+2,Y+22);cx.stroke()}}
+function crag(X,Y,col,sn,v){const c=X+16,b=Y+26;cx.fillStyle='rgba(20,20,25,.3)';ell(c+5,b+2,14,4);
+  const pts=v?[[-12,0],[-8,-22],[-3,-30],[1,-18],[5,-38],[10,-20],[13,0]]:[[-13,0],[-9,-16],[-4,-26],[2,-34],[7,-22],[12,-12],[14,0]];
+  cx.fillStyle=hg(c-13,c+14,col,.25,-.4);cx.beginPath();pts.forEach(([a,q],k)=>k?cx.lineTo(c+a,b+q):cx.moveTo(c+a,b+q));cx.closePath();cx.fill();ink(1.1);
+  cx.strokeStyle='rgba(20,15,12,.5)';cx.lineWidth=1;cx.beginPath();cx.moveTo(c+1,b);cx.lineTo(c+2,b-20);cx.moveTo(c-6,b);cx.lineTo(c-5,b-12);cx.stroke();
+  cx.fillStyle='rgba(255,250,235,.3)';cx.beginPath();cx.moveTo(c-9,b-3);cx.lineTo(c-5,b-24);cx.lineTo(c-3,b-14);cx.closePath();cx.fill();
+  if(sn){cx.fillStyle='#f4f8fa';const t=pts.reduce((a,p)=>p[1]<a[1]?p:a);cx.beginPath();cx.moveTo(c+t[0]-5,b+t[1]+9);cx.lineTo(c+t[0],b+t[1]);cx.lineTo(c+t[0]+5,b+t[1]+9);cx.closePath();cx.fill();ink(.6)}}
+function mtnDeco(X,Y,x,y){const i=y*WW+x,m=MOUNTS[MI[i]-1],h=hash(x,y,811),s=MH[i]/m.L,sn=s>=MPAL[m.pal].snow;
+  if(h>.9){const v=hash(x,y,812)<.5?1:0,col=MPAL[m.pal].face;sprite('crag'+m.pal+v+(sn?1:0),1,X,Y,(a,b)=>crag(a,b,mixh(col,'#ffffff',.25),sn,v));return}
+  if(h<.06)sprite('Rm',1,X,Y,(a,b)=>{cx.save();cx.translate(a+16,b+22);cx.scale(.7,.7);cx.translate(-a-16,-b-22);rock(a,b);cx.restore()});
+  else if(h<.15&&s<.8){if(m.pal==='snow'||sn)sprite('1'+(hash(x,y,41)<.5?0:1),0,X,Y,(a,b)=>snowPine(a,b,x,y));else if(m.pal==='mesa'){if(h<.09)sprite('2'+(hash(x,y,42)<.5?0:1),0,X,Y,(a,b)=>cactus(a,b,x,y))}else if(m.pal==='basalt')sprite('3'+(hash(x,y,43)<.5?0:1),0,X,Y,(a,b)=>charred(a,b,x,y));else sprite('Ip',1,X,Y,(a,b)=>tree(a,b,x,y,1))}}
+function cairn(X,Y){const c=X+16;cx.fillStyle='rgba(20,25,15,.3)';ell(c+3,Y+29,13,4);
+  for(const [dx,dy,r] of [[-6,24,6],[5,24,6],[0,18,6],[-3,12,5],[3,7,4],[0,2,3.5]]){cx.fillStyle=hg(c+dx-r,c+dx+r,'#9a978e',.3,-.35);cx.beginPath();cx.ellipse(c+dx,Y+dy,r*1.15,r*.8,0,0,7);cx.fill();ink(.8)}
+  cx.strokeStyle=INK;cx.lineWidth=3;cx.beginPath();cx.moveTo(c+1,Y+2);cx.lineTo(c+1,Y-34);cx.stroke();cx.strokeStyle='#7a5030';cx.lineWidth=1.8;cx.stroke();
+  const f=Math.sin(T*4)*3;cx.fillStyle=hg(c+2,c+24,'#2f5f8a',.25,-.25);cx.beginPath();cx.moveTo(c+2,Y-33);cx.quadraticCurveTo(c+12,Y-31+f,c+24,Y-30+f*.5);cx.lineTo(c+18,Y-25);cx.lineTo(c+24,Y-20+f*.4);cx.quadraticCurveTo(c+12,Y-22+f,c+2,Y-22);cx.closePath();cx.fill();ink(.8);
+  cx.fillStyle='#f2e6c0';circ(c+11,Y-27+f*.5,2.2)}
+function crane(X,Y){const c=X+16,sw=Math.sin(T*.8+X)*.15;cx.fillStyle='rgba(20,25,15,.3)';ell(c+4,Y+29,14,4);
+  cx.fillStyle=hg(c-11,c+11,'#6b4426',.2,-.3);cx.fillRect(c-11,Y+18,22,10);cx.beginPath();cx.rect(c-11,Y+18,22,10);ink(1);
+  for(const dx of [-8,6]){cx.fillStyle=hg(c+dx,c+dx+3,'#7a5030',.2,-.3);cx.fillRect(c+dx,Y-38,3,57);cx.beginPath();cx.rect(c+dx,Y-38,3,57);ink(.8)}
+  cx.strokeStyle='#5a3a20';cx.lineWidth=1.6;cx.beginPath();for(let k=0;k<4;k++){cx.moveTo(c-6,Y+14-k*12);cx.lineTo(c+6,Y+2-k*12)}cx.stroke();
+  cx.save();cx.translate(c,Y-38);cx.rotate(-.12);cx.fillStyle=hg(-4,40,'#7a5030',.2,-.3);cx.fillRect(-10,-3,52,5);cx.beginPath();cx.rect(-10,-3,52,5);ink(.9);
+  cx.strokeStyle='#3a2a1a';cx.lineWidth=1;cx.beginPath();cx.moveTo(-6,-2);cx.lineTo(0,-16);cx.lineTo(40,-1);cx.stroke();cx.restore();
+  const hx=c+38,hy=Y-42;cx.save();cx.translate(hx,hy);cx.rotate(sw);cx.strokeStyle='#2a2018';cx.lineWidth=1;cx.beginPath();cx.moveTo(0,0);cx.lineTo(0,34);cx.stroke();
+  cx.fillStyle=hg(-7,7,'#9c7444',.2,-.3);cx.fillRect(-7,34,14,11);cx.beginPath();cx.rect(-7,34,14,11);ink(.8);cx.strokeStyle='rgba(60,40,20,.6)';cx.beginPath();cx.moveTo(-7,34);cx.lineTo(7,45);cx.moveTo(7,34);cx.lineTo(-7,45);cx.stroke();cx.restore();
+  cx.fillStyle='#4a3220';circ(c-1,Y+8,4.5);cx.fillStyle='#8a6a3e';circ(c-1,Y+8,2)}
+
+/* =================== HARBOR SHIPS ===================
+   Painted top-down ships (like the ones on a map): wooden hulls, curved sails,
+   wakes. Visitors sail in from the open sea, tie up at the piers, rest, turn
+   about and leave. Others stay moored; rowboats potter about the basin. */
+const SHIPK={galleon:{s:1.5,L:96,W:28,masts:[-.28,.02,.3],sw:[14,16,12],jib:1,stern:1},sloop:{s:1.35,L:70,W:22,masts:[-.1,.22],sw:[11,12],jib:1},cog:{s:1.3,L:62,W:24,masts:[.05],sw:[14]},row:{s:1.25,L:26,W:11,masts:[],row:1}};
+function plen(P){let s=0;for(let i=1;i<P.length;i++)s+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);return s}
+function pAt(P,d){for(let i=1;i<P.length;i++){const sl=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);if(d<=sl||i===P.length-1){const f=sl?Math.min(1,d/sl):0;
+  let a=Math.atan2(P[i][1]-P[i-1][1],P[i][0]-P[i-1][0]);const bl=1.2;
+  if(i<P.length-1&&sl-d<bl){const a2=Math.atan2(P[i+1][1]-P[i][1],P[i+1][0]-P[i][0]);a=lerpAng(a,a2,.5*(1-(sl-d)/bl))}
+  if(i>1&&d<bl){const a0=Math.atan2(P[i-1][1]-P[i-2][1],P[i-1][0]-P[i-2][0]);a=lerpAng(a0,a,.5+.5*d/bl)}
+  return [P[i-1][0]+(P[i][0]-P[i-1][0])*f,P[i-1][1]+(P[i][1]-P[i-1][1])*f,a]}d-=sl}const q=P[P.length-1];return [q[0],q[1],0]}
+function lerpAng(a,b,t){let d=((b-a+Math.PI*3)%(Math.PI*2))-Math.PI;return a+d*t}
+const FLEET=(()=>{const H=HARBOR,cy=H.cy,mid=(H.cy0+H.cy1)/2+.5,F=[];
+  const sea=[1.5,mid],mouth=[H.bx0+4,mid];
+  const visit=(kind,berth,dwell,phase,sail,ln)=>{const P=[[1.5,mid+ln],[H.bx0+4,mid+ln],[berth[0],mid+2+ln*.6],[berth[0],berth[1]]];F.push({kind,P,len:plen(P),sp:1.15,dwell,phase,sail,turn:5,gone:40})};
+  visit('galleon',[H.berths[0],H.by0+3.5],50,0,'#efe4c6',-1.8);
+  visit('sloop',[H.berths[0],H.by0+3.5],50,0,'#e8d0b0',1.8);
+  {const per=q=>{fleetPose(q);return q.len/q.sp+q.dwell+q.bk+q.turn+q.olen/q.sp+q.gone};const p0=per(F[0]);F[1].gone+=p0-per(F[1]);F[1].phase=-p0/2}
+  F.push({kind:'galleon',fixed:[H.berths[1],H.by0+3.5,-Math.PI/2],sail:'#efe4c6',stripe:'#2f5f8a'});
+  F.push({kind:'cog',fixed:[H.berths[2],H.by0+3.2,-Math.PI/2],sail:'#d8c8a0'});
+  F.push({kind:'row',loop:[H.bx0+3,H.by0+3,1.8,1.4],ph:0,spd:.05},{kind:'row',loop:[H.bx1-2.5,H.by1-5,2,1.5],ph:2,spd:.06});
+  F.push({kind:'row',fixed:[SALT.sx-3,229.6+DY,.3]},{kind:'row',fixed:[SALT.sx-7,226.8+DY,-.2]});
+  const coast=[[9,4],[13,MY(90)],[8,MY(170)],[12,MY(300)],[9,MY(396)]];
+  F.push({kind:'sloop',coast,len:plen(coast),sp:.9,ph:0,sail:'#efe4c6'},{kind:'galleon',coast:coast.map(([x,y])=>[x+5,y]),len:plen(coast),sp:.7,ph:260,sail:'#e9dcc0',stripe:'#8b2e24'});
+  return F})();
+function fleetPose(s){if(s.fixed)return {x:s.fixed[0],y:s.fixed[1],a:s.fixed[2],mv:0,furl:1};
+  if(s.loop){const t=T*s.spd*6.283+s.ph,x=s.loop[0]+Math.cos(t)*s.loop[2],y=s.loop[1]+Math.sin(t)*s.loop[3];return {x,y,a:Math.atan2(Math.cos(t)*s.loop[3],-Math.sin(t)*s.loop[2]),mv:1}}
+  if(s.coast){const L=s.len,tt=((T*s.sp+s.ph)%(2*L)+2*L)%(2*L),back=tt>L,d=back?2*L-tt:tt,[x,y,a]=pAt(s.coast,d);return {x,y,a:back?a+Math.PI:a,mv:1}}
+  if(!s.out){const n=s.P.length;s.T=n>3?s.P[n-2]:s.P[n-1];s.out=[s.T,s.P[1],s.P[0]];s.olen=plen(s.out);s.bk=n>3?Math.hypot(s.P[n-1][0]-s.T[0],s.P[n-1][1]-s.T[1])/(s.sp*.45):0}
+  const tin=s.len/s.sp,tout=s.olen/s.sp,per=tin+s.dwell+s.bk+s.turn+tout+s.gone,t=((T+s.phase)%per+per)%per;
+  const end=s.P[s.P.length-1],a0=Math.atan2(end[1]-s.P[s.P.length-2][1],end[0]-s.P[s.P.length-2][0]),aO=Math.atan2(s.out[1][1]-s.T[1],s.out[1][0]-s.T[0]);
+  if(t<tin){const [x,y,a]=pAt(s.P,t*s.sp);return {x,y,a,mv:1}}
+  let u=t-tin;if(u<s.dwell)return {x:end[0],y:end[1],a:a0,mv:0,furl:1};u-=s.dwell;
+  if(u<s.bk){const f=u/s.bk,e=f*f*(3-2*f);return {x:end[0]+(s.T[0]-end[0])*e,y:end[1]+(s.T[1]-end[1])*e,a:a0,mv:.3,furl:1}}u-=s.bk;
+  if(u<s.turn){const f=u/s.turn;return {x:s.T[0],y:s.T[1],a:lerpAng(a0,aO,f*f*(3-2*f)),mv:.4}}u-=s.turn;
+  if(u<tout){const [x,y,a]=pAt(s.out,u*s.sp);return {x,y,a,mv:1}}
+  return null}
+let SHIPROWS=null;
+function fleetFrame(x0,x1,y0,y1){SHIPROWS=new Map();if(S.map!=='world')return;for(const s of FLEET){const p=fleetPose(s);if(!p)continue;if(p.x<x0-4||p.x>x1+4||p.y<y0-3||p.y>y1+4)continue;
+  const r=Math.floor(p.y);if(!SHIPROWS.has(r))SHIPROWS.set(r,[]);SHIPROWS.get(r).push([s,p])}}
+function drawShipsRow(y){if(!SHIPROWS)return;const L=SHIPROWS.get(y);if(!L)return;for(const [s,p] of L)drawShip(p.x*TS,p.y*TS,p.a,s,p)}
+function drawShip(px,py,a,s,p){cx.save();cx.translate(px,py);cx.scale(SHIPK[s.kind].s,SHIPK[s.kind].s);try{drawShip0(0,0,a,s,p,px)}finally{cx.restore()}}
+function drawShip0(px,py,a,s,p,wx){const K=SHIPK[s.kind],ca=Math.cos(a),sa=Math.sin(a),seed=(s.phase||0)+(s.ph||0)+wx*.01,bob=Math.sin(T*1.7+seed)*1.1,roll=Math.sin(T*1.3+seed)*.6;
+  const Pt=(u,v,h=0)=>[px+ca*u-sa*v,py+sa*u+ca*v-h+bob];const hl=K.L/2,hw=K.W/2,hd=K.row?3:7;
+  const hull=(h,sc=1)=>{cx.beginPath();const pts=[[hl,0],[hl*.62,hw*.82],[-hl*.55,hw],[-hl*.95,hw*.7],[-hl,0],[-hl*.95,-hw*.7],[-hl*.55,-hw],[hl*.62,-hw*.82]];
+    pts.forEach(([u,v],i)=>{const q=Pt(u*sc,v*sc,h);i?cx.lineTo(q[0],q[1]):cx.moveTo(q[0],q[1])});cx.closePath()};
+  // wake and water ring
+  if(p.mv){cx.lineCap='round';for(const sd of [-1,1]){cx.strokeStyle='rgba(235,248,250,.55)';cx.lineWidth=2;cx.beginPath();const a1=Pt(-hl*.8,sd*hw*.9);cx.moveTo(a1[0],a1[1]);for(let k=1;k<=5;k++){const q=Pt(-hl-k*9,sd*(hw+k*5)+Math.sin(T*3+k)*1.5);cx.lineTo(q[0],q[1])}cx.stroke()}
+    cx.strokeStyle='rgba(235,248,250,.6)';cx.lineWidth=2.4;cx.beginPath();const b0=Pt(hl+2,-hw*.6),b1=Pt(hl+4,0),b2=Pt(hl+2,hw*.6);cx.moveTo(b0[0],b0[1]);cx.quadraticCurveTo(b1[0],b1[1],b2[0],b2[1]);cx.stroke();cx.lineCap='butt'}
+  cx.fillStyle='rgba(10,35,50,.32)';hull(-2,1.12);cx.fill();
+  cx.strokeStyle='rgba(225,240,240,.35)';cx.lineWidth=1.5;hull(0,1.08);cx.stroke();
+  // hull side (seen as a band to the south) then deck
+  cx.fillStyle='#4a2c16';hull(0);cx.fill();ink(1);
+  cx.fillStyle=s.stripe&&!K.row?s.stripe:'#6b4426';hull(hd*.45,.985);cx.fill();
+  const dg=cx.createLinearGradient(px-hw,py-hl,px+hw,py+hl);dg.addColorStop(0,'#b58552');dg.addColorStop(1,'#8a5e36');cx.fillStyle=dg;hull(hd,.9);cx.fill();ink(1.1);
+  cx.save();hull(hd,.88);cx.clip();cx.strokeStyle='rgba(70,40,20,.45)';cx.lineWidth=.7;cx.beginPath();for(let v=-hw;v<=hw;v+=3.2){const q0=Pt(-hl,v,hd),q1=Pt(hl,v,hd);cx.moveTo(q0[0],q0[1]);cx.lineTo(q1[0],q1[1])}cx.stroke();
+  if(!K.row){cx.fillStyle='#5a3a20';for(const u of [-.12,.16]){const q=Pt(K.L*u,0,hd);cx.fillRect(q[0]-4,q[1]-3,8,6)}if(K.stern){const q=Pt(-hl*.78,0,hd+3);cx.fillStyle='#7a5030';cx.beginPath();cx.ellipse(q[0],q[1],9,8,a,0,7);cx.fill();ink(.8)}}
+  cx.restore();
+  if(K.row){for(const sd of [-1,1]){const st=Math.sin(T*4+seed)*5*(p.mv?1:0),q0=Pt(0,sd*hw*.6,hd),q1=Pt(st,sd*(hw+9),0);cx.strokeStyle='#6b4426';cx.lineWidth=1.6;cx.beginPath();cx.moveTo(q0[0],q0[1]);cx.lineTo(q1[0],q1[1]);cx.stroke()}
+    const q=Pt(-3,0,hd+2);cx.fillStyle='#8b2e24';circ(q[0],q[1]-3,2.6);cx.fillStyle='#e0b48a';circ(q[0],q[1]-6.5,2);return}
+  // bowsprit and jib
+  const bs0=Pt(hl*.9,0,hd+2),bs1=Pt(hl+16,0,hd+8);cx.strokeStyle=INK;cx.lineWidth=2.6;cx.beginPath();cx.moveTo(bs0[0],bs0[1]);cx.lineTo(bs1[0],bs1[1]);cx.stroke();cx.strokeStyle='#6b4426';cx.lineWidth=1.4;cx.stroke();
+  const mh=[30,38,30];
+  if(K.jib&&!p.furl){const m0=Pt(K.L*K.masts[K.masts.length-1],0,hd+mh[K.masts.length-1]+10),q2=Pt(hl*.55,0,hd+4);cx.fillStyle=s.sail;cx.beginPath();cx.moveTo(bs1[0],bs1[1]);cx.quadraticCurveTo((m0[0]+bs1[0])/2+sa*6,(m0[1]+bs1[1])/2-ca*6,m0[0],m0[1]);cx.lineTo(q2[0],q2[1]);cx.closePath();cx.fill();ink(.9)}
+  // masts and sails, back to front
+  K.masts.forEach((mu,i)=>{const h0=hd,h1=hd+(mh[i]||30)+(i===1?8:0),base=Pt(K.L*mu,0,h0),tip=Pt(K.L*mu,0,h1);
+    cx.fillStyle='rgba(20,30,40,.25)';const sh=Pt(K.L*mu+10,6,0);ell(sh[0],sh[1],5,3);
+    cx.strokeStyle=INK;cx.lineWidth=3.4;cx.beginPath();cx.moveTo(base[0],base[1]);cx.lineTo(tip[0],tip[1]);cx.stroke();cx.strokeStyle='#7a5030';cx.lineWidth=2;cx.stroke();
+    const w=K.sw[i]*(p.furl?1:1.25),b=p.furl?0:7+Math.sin(T*2+i+seed)*1.2;
+    for(const [hh,ww,lvl,dr] of (s.kind==='galleon'&&i===1?[[h1-3,w*.9,0,12],[h1-17,w*1.15,1,15]]:[[h1-6,w,0,18]])){
+      const y0=Pt(K.L*mu,-ww,hh),y1=Pt(K.L*mu,ww,hh);
+      if(p.furl){cx.strokeStyle=INK;cx.lineWidth=5;cx.lineCap='round';cx.beginPath();cx.moveTo(y0[0],y0[1]);cx.lineTo(y1[0],y1[1]);cx.stroke();cx.strokeStyle=shd(s.sail.length===7?s.sail:'#d8c8a0',-.12);cx.lineWidth=3.4;cx.stroke();cx.lineCap='butt';continue}
+      const f0=Pt(K.L*mu+b*.6,-ww*.85,hh-dr),f1=Pt(K.L*mu+b*.6,ww*.85,hh-dr),fm=Pt(K.L*mu+b,0,hh-dr*.55);
+      const g=cx.createLinearGradient(y0[0],y0[1],y1[0],y1[1]);g.addColorStop(0,shd(s.sail,.12));g.addColorStop(.55,s.sail);g.addColorStop(1,shd(s.sail,-.22));cx.fillStyle=g;
+      cx.beginPath();cx.moveTo(y0[0],y0[1]);cx.quadraticCurveTo(fm[0]-(y1[0]-y0[0])*.0,fm[1],y1[0],y1[1]);cx.lineTo(f1[0],f1[1]);cx.quadraticCurveTo(fm[0]+ca*3,fm[1]+sa*3+3,f0[0],f0[1]);cx.closePath();cx.fill();ink(1);
+      if(s.stripe&&lvl===0){cx.save();cx.clip();cx.strokeStyle=s.stripe;cx.lineWidth=3;cx.beginPath();const m0=Pt(K.L*mu+b*.4,-ww,hh-dr*.45),m1=Pt(K.L*mu+b*.4,ww,hh-dr*.45);cx.moveTo(m0[0],m0[1]);cx.lineTo(m1[0],m1[1]);cx.stroke();cx.restore()}
+      cx.strokeStyle=INK;cx.lineWidth=2.2;cx.beginPath();cx.moveTo(y0[0],y0[1]);cx.lineTo(y1[0],y1[1]);cx.stroke();cx.strokeStyle='#6b4426';cx.lineWidth=1.1;cx.stroke()}
+    if(i===K.masts.length-1||s.kind!=='galleon'||i===1){const fw=Math.sin(T*5+i+seed)*2;cx.fillStyle=s.stripe||'#a8352a';cx.beginPath();cx.moveTo(tip[0],tip[1]);cx.lineTo(tip[0]-ca*12+fw*sa,tip[1]-sa*12-3+fw);cx.lineTo(tip[0],tip[1]-5);cx.closePath();cx.fill();ink(.6)}});
+  // rigging lines to the rails
+  cx.strokeStyle='rgba(40,25,15,.55)';cx.lineWidth=.6;cx.beginPath();K.masts.forEach((mu,i)=>{const tip=Pt(K.L*mu,0,hd+(mh[i]||30)+(i===1?8:0)-2);for(const v of [-hw*.9,hw*.9]){const q=Pt(K.L*mu-6,v,hd);cx.moveTo(tip[0],tip[1]);cx.lineTo(q[0],q[1])}});cx.stroke()}
 </script>
 
 </body>
