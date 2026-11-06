@@ -1368,7 +1368,9 @@ const PEOPLE={
   dwarfghost:{skin:'#b8d0c0',hair:'#c8e0d0',beard:'#c8e0d0',top:'#7a9a8a',legs:'#5a6a64',hat:'helm',child:1}};
 
 /* =================== STATE =================== */
-const KEY='hollowmere-save-v4', V3='hollowmere-save-v3', V2='hollowmere-save-v2', OLD='hollowmere-save-v1';
+// DEV mode uses its own save slot. Normal characters continue using the original save key.
+const DEV=/[?&]dev(?:[=&]|$)/i.test(location.search);
+const KEY=DEV?'hollowmere-dev-save-v1':'hollowmere-save-v4', V3='hollowmere-save-v3', V2='hollowmere-save-v2', OLD='hollowmere-save-v1';
 const NEW=()=>({lv:1,xp:0,gold:30,hp:0,mp:0,st:{str:3,def:2,vit:3,agi:2,int:2},pts:0,bag:{potion:2,ether:0,smoke:0},wpn:0,arm:0,time:'day',map:'world',x:OX+7,y:OY+11,dir:'down',min:480,day:0,kills:0,checkedIn:false,searched:[],q:{},qk:{},loot:{},skills:[],bossDown:[],bnt:0,trinkets:[],trk:0,bag2:1,broken:{},ko:[],heat:0,wanted:0});
 const tb=k=>(TRINKETS[S.trk]&&TRINKETS[S.trk].st&&TRINKETS[S.trk].st[k])||0,E=k=>S.st[k]+tb(k)+gb(k);
 const maxHP=()=>20+E('vit')*6+S.lv*4, maxMP=()=>8+E('int')*4;
@@ -1380,6 +1382,8 @@ const crit=()=>{const w=EQ('main'),o=offW();return Math.min(.55,.04+E('agi')*.01
 const spell=()=>{let sp=0;for(const k of ['main','off']){const it=EQ(k);if(it&&it.sp)sp+=it.sp}return Math.round((6+E('int')*3+sp)*(hasFx('spell')?1.3:1))}, xpNext=l=>Math.round(18*Math.pow(l,1.6));
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.st&&MAPS[s.map])return Object.assign(NEW(),s)}catch(e){}
+  // Never import a normal/legacy character into the isolated developer character.
+  if(DEV)return null;
   try{const s=JSON.parse(localStorage.getItem(V3));if(s&&s.st){const n=Object.assign(NEW(),s);
     if(s.map==='world'||!MAPS[s.map]){const inT=s.x>=38&&s.x<82&&s.y>=32&&s.y<64;n.map='world';n.x=inT?s.x-38+OX:OX+7;n.y=inT?s.y-32+OY:OY+11}return n}}catch(e){}
   try{const s=JSON.parse(localStorage.getItem(V2));if(s&&s.st){const n=Object.assign(NEW(),s);
@@ -2456,7 +2460,7 @@ function drawMinimap(dt){cx.imageSmoothingEnabled=false;const v=mapView(),{sc,fx
   MBTN=[];const btn=(x,y,lab,f)=>{cx.fillStyle='#3a281a';cx.fillRect(x,y,30,30);cx.strokeStyle='#d4a23c';cx.lineWidth=2;cx.strokeRect(x+1,y+1,28,28);cx.fillStyle='#efe3c4';cx.font='700 20px "Alegreya SC", Georgia, serif';cx.fillText(lab,x+15,y+16);MBTN.push([x,y,30,30,f])};
   btn(fx+fw-36,fy+6,'+',()=>mapZoom(1));btn(fx+fw-36,fy+40,'−',()=>mapZoom(-1));btn(fx+fw-36,fy+74,'◎',()=>{const wp=worldPos();if(wp){MCX=wp[0];MCY=wp[1]}});btn(fx+fw-36,fy+108,'×',()=>{MMODE=0});
   cx.font='700 13px "Alegreya SC", Georgia, serif';cx.fillStyle='#efe3c4';cx.textAlign='center';cx.textBaseline='middle';
-  if(DEV){cx.fillStyle='#7ff0ff';cx.fillText('DEV · Right-click or Shift+click the map to teleport there',W/2,H-58);cx.fillStyle='#efe3c4'}cx.fillText(`Zoom ×${MZ} · Scroll, +/− or tap to zoom · Drag or arrows to move · M to close`,W/2,H-38);cx.fillStyle='#ff6a5a';cx.fillText('◆ Boss',W/2-130,H-18);cx.fillStyle='#ffb03a';cx.fillText('◆ Elite',W/2-40,H-18);cx.fillStyle='#7ff0ff';cx.fillText('◆ Waystone',W/2+60,H-18);cx.fillStyle='#d79bff';cx.fillText('▣ Dungeon',W/2+165,H-18);cx.fillStyle='#ffffff';cx.fillText('■ You',W/2+255,H-18);cx.textAlign='left';cx.textBaseline='alphabetic'}
+  if(DEV){cx.fillStyle='#7ff0ff';cx.fillText('DEV · Click any point on the map to teleport',W/2,H-58);cx.fillStyle='#efe3c4'}cx.fillText(`Zoom ×${MZ} · Scroll, +/− or tap to zoom · Drag or arrows to move · M to close`,W/2,H-38);cx.fillStyle='#ff6a5a';cx.fillText('◆ Boss',W/2-130,H-18);cx.fillStyle='#ffb03a';cx.fillText('◆ Elite',W/2-40,H-18);cx.fillStyle='#7ff0ff';cx.fillText('◆ Waystone',W/2+60,H-18);cx.fillStyle='#d79bff';cx.fillText('▣ Dungeon',W/2+165,H-18);cx.fillStyle='#ffffff';cx.fillText('■ You',W/2+255,H-18);cx.textAlign='left';cx.textBaseline='alphabetic'}
 function openMap(){if(MMODE){MMODE=0;return}MMODE=2;MZ=1;MCX=WW/2;MCY=WH/2;held.length=0}
 function canvasPt(e){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
 cv.addEventListener('wheel',e=>{if(MMODE!==2)return;e.preventDefault();const [x,y]=canvasPt(e);mapZoom(e.deltaY<0?1:-1,x,y)},{passive:false});
@@ -2465,7 +2469,12 @@ cv.addEventListener('pointerdown',e=>{if(MMODE!==2)return;const [x,y]=canvasPt(e
 cv.addEventListener('pointermove',e=>{if(MMODE!==2||!MDRAG)return;const [x,y]=canvasPt(e),v=mapView(),dx=x-MDRAG.x,dy=y-MDRAG.y;MDRAG.moved=Math.max(MDRAG.moved,Math.abs(dx)+Math.abs(dy));
   if(MDRAG.moved>4){MCX=MDRAG.cx0-dx/v.sc;MCY=MDRAG.cy0-dy/v.sc;cv.style.cursor='grabbing'}});
 const endDrag=e=>{if(!MDRAG)return;const d=MDRAG;MDRAG=null;cv.style.cursor='';try{cv.releasePointerCapture(d.id)}catch(_){}if(MMODE!==2||d.moved>4)return;
-  if(e.button===2)return;const [x,y]=canvasPt(e);if(DEV&&e.shiftKey){tpMapClick(x,y);return}for(const [bx,by,bw,bh,f] of MBTN)if(x>=bx&&x<=bx+bw&&y>=by&&y<=by+bh){f();return}const v=mapView();if(x>v.fx&&x<v.fx+v.fw&&y>v.fy&&y<v.fy+v.fh)mapZoom(MZ>=8?-8:1,x,y)};
+  if(e.button===2)return;const [x,y]=canvasPt(e);
+  // Buttons take priority; otherwise a normal left-click on the visible map teleports in DEV mode.
+  for(const [bx,by,bw,bh,f] of MBTN)if(x>=bx&&x<=bx+bw&&y>=by&&y<=by+bh){f();return}
+  const v=mapView();
+  if(DEV&&x>=v.fx&&x<=v.fx+v.fw&&y>=v.fy&&y<=v.fy+v.fh){tpMapClick(x,y);return}
+  if(x>v.fx&&x<v.fx+v.fw&&y>v.fy&&y<v.fy+v.fh)mapZoom(MZ>=8?-8:1,x,y)};
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',()=>{MDRAG=null;cv.style.cursor=''});
 let FLOCK=null,flockWait=6;
 function ambient(m,x0,x1,y0,y1,night,dt,camX,camY){
@@ -3698,7 +3707,7 @@ $('#bStats').addEventListener('click',openStats);$('#bBag').addEventListener('cl
 
 
 /* ---- DEV TOOLS (only active when the link ends in ?dev) ---- */
-const DEV=/[?&]dev\b/i.test(location.search);
+// DEV is declared with the save keys above so the correct character slot loads at startup.
 let TPBACK=null;
 function tpFree(m,x,y){const M=MAPS[m];for(let r=0;r<16;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
   const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=M.w||ny>=M.h)continue;if(!terrainSolid(m,nx,ny))return [nx,ny]}return [x,y]}
@@ -3714,7 +3723,7 @@ function tpTargets(){const L=[],seen=new Set(),add=(g,n,m,x,y)=>{if(!MAPS[m])ret
   for(const b of BOSSES)add('Bosses',b.n+(b.elite?' (elite)':''),b.map||'world',b.x,b.y+1);
   return L}
 function openTeleport(){if(!DEV||scene!=='explore')return;MMODE=0;const L=tpTargets(),groups=['Places','Waystones','Buildings','Dungeons','Bosses'];
-  modal(()=>{let h=`<h2>Teleport</h2><p class="sub">You are in ${MAPS[S.map].name||S.map} at (${P.x}, ${P.y}). On the map (M), right-click or Shift+click anywhere to jump there.</p>
+  modal(()=>{let h=`<h2>Teleport</h2><p class="sub">You are in ${MAPS[S.map].name||S.map} at (${P.x}, ${P.y}). On the map (M), left-click anywhere to jump there.</p>
     <input id="tpq" placeholder="Search places…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px 10px;font:inherit;margin:6px 0">`;
     if(TPBACK)h+=`<p><button class="btn" data-a="back">↩ Back to previous spot</button></p>`;
     for(const g of groups){const it=L.map((t,i)=>[t,i]).filter(([t])=>t.g===g);if(!it.length)continue;
