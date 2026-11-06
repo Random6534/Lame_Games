@@ -330,7 +330,7 @@ CACHES.push({id:'siren',n:"Siren's Hoard",x:0,y:118,art:'coralblade',g:260,text:
 CACHES[1].x=430;CACHES[1].y=20;
 CACHES.push({id:'ashkar',n:'Vault of Ashkar',x:672,y:372,il:27,g:600,text:'Behind a fallen statue, a sealed vault of the old kings. Gold spills out as the door gives way.'},{id:'serai',n:'Innkeeper\'s Strongbox',x:552,y:181,il:18,g:250,text:'Hidden under a loose floor stone, the innkeeper\'s savings. He won\'t be needing them.'});
 const cacheAt=(x,y)=>CACHES.find(q=>q.x===x&&q.y===y);
-const WAYS=[{id:'hm',n:'Hollowmere',x:OX+27,y:OY-3},{id:'al',n:'Aldermoor',x:CX-6,y:CY+18},{id:'moor',n:'Moor Henge',x:130,y:252},{id:'sky',n:'Skyfall Crater',x:540,y:70},{id:'glass',n:'Glass Dunes',x:630,y:310},{id:'basalt',n:'Basalt Steps',x:310,y:382}];
+const WAYS=[{id:'hm',n:'Hollowmere',x:OX+27,y:OY-3},{id:'al',n:'Aldermoor',x:CX-6,y:CY+18},{id:'moor',n:'Moor Henge',x:130,y:252},{id:'sky',n:'Skyfall Crater',x:540,y:70},{id:'glass',n:'Glass Dunes',x:630,y:310},{id:'basalt',n:'Basalt Steps',x:310,y:382},{id:'mire',n:'Mirewatch',x:90,y:142},{id:'iron',n:'Ironhollow',x:260,y:302}];
 const wayAt=(x,y)=>WAYS.find(w=>w.x===x&&w.y===y);
 /* Named places in the new lands. t = map label tier (0 region, 1 major, 2 minor) */
 const PLACES=[
@@ -339,6 +339,11 @@ const PLACES=[
   {n:"Temple of Ra'Khet",x:575,y:245,r:10,b:'temple'},{n:'Leviathan Bonefield',x:655,y:172,r:9,b:'leviathan'},{n:'Mirage Pools',x:690,y:70,r:9,b:'mirage'},{n:'Banu Zahir Encampment',x:600,y:60,r:9,b:'nomads'},{n:'Glass Dunes',x:630,y:310,r:8,b:'glass'},
   {n:'Khaz Dural',x:230,y:345,r:10,b:'dwarf'},{n:'Ember Grove',x:400,y:312,r:9,b:'embergrove'},{n:'Brimstone Pits',x:500,y:330,r:8,b:'brimstone'},{n:'Basalt Steps',x:310,y:382,r:7,b:'basalt'},{n:'Dragonbone Ridge',x:200,y:386,r:9,b:'ridge'}];
 PLACES.push(
+  {n:'Stormhaven, the Free Port',x:116,y:220,r:19,b:'city',city:'stormhaven'},
+  {n:'Sunspire, City of the Golden Veil',x:520,y:240,r:19,b:'city',city:'sunspire'},
+  {n:'Emberwatch, the Cinder March',x:365,y:340,r:19,b:'city',city:'emberwatch'},
+  {n:'Mirewatch, the Reed-Crowned City',x:90,y:120,r:19,b:'city',city:'mirewatch'},
+  {n:'Ironhollow, City Beneath the Mountain',x:260,y:280,r:19,b:'city',city:'ironhollow'},
   {n:'Blackwater Fort',x:112,y:348,r:12,b:'fort',f:'pirate'},{n:'Blackwater Grotto',x:80,y:176,r:5,b:'dungeon',d:'grotto'},{n:"Black Mara's Camp",x:170,y:194,r:5,b:'hwy'},
   {n:'Frostreaver Warcamp',x:165,y:22,r:12,b:'fort',f:'reaver'},{n:'Frostmaw Caverns',x:455,y:76,r:5,b:'dungeon',d:'icecave'},{n:"Halvard's Toll",x:330,y:60,r:5,b:'hwy'},
   {n:'Fort Scorpion',x:640,y:22,r:12,b:'fort',f:'raider'},{n:'Scarab Hive',x:610,y:228,r:5,b:'dungeon',d:'tomb'},{n:"Jasim's Ambush",x:560,y:193,r:5,b:'hwy'},
@@ -355,6 +360,38 @@ NEWRELIQ.push({x:688,y:356,il:28},{x:0,y:326,il:20},{x:500,y:16,il:27},{x:575,y:
 const EXTRAB=[{x:221,y:78,w:6,h:5,roof:'slate',door:223,kind:'house',shutter:'#2f5f8a',chimney:1,msg:'Locked. A drinking song booms from inside, then a crash, then laughter.'},
   {x:236,y:77,w:7,h:6,roof:'slate',door:239,kind:'house',shutter:'#8b2e24',chimney:1,sign:'MEAD',msg:'The mead hall is shut for the night. Or the morning. Hard to tell up here.'},
   {x:228,y:89,w:5,h:5,roof:'thatch',door:230,kind:'house',shutter:'#3f6b35',chimney:1,msg:'Locked. Furs hang over the window to keep the cold out.'}];
+const CITYBUILD=[
+  // Stormhaven: customs hall, tide-market, inn, guild office and lighthouse chapel.
+  {city:'stormhaven',x:99,y:210,w:7,h:6,door:102,kind:'guild',roof:'slate',sign:'CUSTOMS',to:{map:'storm_customs',x:8,y:10}},
+  {city:'stormhaven',x:110,y:210,w:7,h:6,door:113,kind:'inn',roof:'tile',sign:'ANCHOR',to:{map:'storm_inn',x:8,y:10}},
+  {city:'stormhaven',x:122,y:210,w:7,h:6,door:125,kind:'shop',roof:'slate',sign:'FISH',to:{map:'storm_market',x:8,y:10}},
+  {city:'stormhaven',x:99,y:225,w:7,h:6,door:102,kind:'chapel',roof:'slate',sign:'TIDE',to:{map:'storm_chapel',x:8,y:10}},
+  {city:'stormhaven',x:122,y:225,w:7,h:6,door:125,kind:'house',roof:'thatch',msg:'The harbor-master is away inspecting the breakwater.'},
+  // Sunspire: palace, caravanserai, bazaar, scriptorium and bathhouse.
+  {city:'sunspire',x:503,y:230,w:8,h:7,door:507,kind:'keep',roof:'slate',sign:'PALACE',to:{map:'sun_palace',x:9,y:11}},
+  {city:'sunspire',x:516,y:230,w:7,h:6,door:519,kind:'inn',roof:'tile',sign:'CARAVAN',to:{map:'sun_inn',x:8,y:10}},
+  {city:'sunspire',x:529,y:230,w:7,h:6,door:532,kind:'shop',roof:'thatch',sign:'BAZAAR',to:{map:'sun_bazaar',x:8,y:10}},
+  {city:'sunspire',x:503,y:246,w:7,h:6,door:506,kind:'library',roof:'slate',sign:'SCROLLS',to:{map:'sun_scriptorium',x:8,y:10}},
+  {city:'sunspire',x:529,y:246,w:7,h:6,door:532,kind:'house',roof:'tile',msg:'The bathhouse attendants are preparing the evening pools.'},
+  // Emberwatch: command hall, forge, provisioner, shrine and workers' lodging.
+  {city:'emberwatch',x:348,y:330,w:7,h:6,door:351,kind:'guild',roof:'slate',sign:'WARDEN',to:{map:'ember_hall',x:8,y:10}},
+  {city:'emberwatch',x:361,y:330,w:7,h:6,door:364,kind:'smith',roof:'slate',sign:'FORGE',to:{map:'ember_forge',x:8,y:10}},
+  {city:'emberwatch',x:374,y:330,w:7,h:6,door:377,kind:'shop',roof:'tile',sign:'SUPPLIES',to:{map:'ember_shop',x:8,y:10}},
+  {city:'emberwatch',x:348,y:346,w:7,h:6,door:351,kind:'chapel',roof:'thatch',sign:'ASH',to:{map:'ember_shrine',x:8,y:10}},
+  {city:'emberwatch',x:374,y:346,w:7,h:6,door:377,kind:'house',roof:'thatch',msg:'A tired family sleeps behind the shuttered windows.'},
+  // Mirewatch: a raised reed-city on timber piles above the marsh channels.
+  {city:'mirewatch',x:74,y:107,w:7,h:6,door:77,kind:'guild',roof:'slate',sign:'WARDEN',to:{map:'mire_hall',x:8,y:10}},
+  {city:'mirewatch',x:86,y:107,w:7,h:6,door:89,kind:'inn',roof:'tile',sign:'REED',to:{map:'mire_inn',x:8,y:10}},
+  {city:'mirewatch',x:98,y:107,w:7,h:6,door:101,kind:'shop',roof:'thatch',sign:'HERBS',msg:'A herbalist sorts jars of marsh mint and glowcap.'},
+  {city:'mirewatch',x:74,y:126,w:7,h:6,door:77,kind:'chapel',roof:'slate',sign:'LANTERN',msg:'A keeper tends the lantern shrine.'},
+  {city:'mirewatch',x:98,y:126,w:7,h:6,door:101,kind:'house',roof:'thatch',msg:'The reed-weaver is out gathering rushes.'},
+  // Ironhollow: a mountain city of galleries, foundries and deep clan halls.
+  {city:'ironhollow',x:243,y:267,w:7,h:6,door:246,kind:'guild',roof:'slate',sign:'CLAN HALL',to:{map:'iron_hall',x:8,y:10}},
+  {city:'ironhollow',x:255,y:267,w:7,h:6,door:258,kind:'smith',roof:'slate',sign:'DEEP FORGE',to:{map:'iron_forge',x:8,y:10}},
+  {city:'ironhollow',x:267,y:267,w:7,h:6,door:270,kind:'shop',roof:'tile',sign:'ORE',msg:'A quartermaster counts iron ingots behind a barred window.'},
+  {city:'ironhollow',x:243,y:286,w:7,h:6,door:246,kind:'inn',roof:'thatch',sign:'STONE REST',msg:'The inn is full of miners sleeping off their shifts.'},
+  {city:'ironhollow',x:267,y:286,w:7,h:6,door:270,kind:'house',roof:'slate',msg:'A clan family shares a meal behind the stone shutters.'}
+];
 const LANDMARKS=[{c:'9',x:480,y:88},{c:'&',x:262,y:38},{c:'Z',x:420,y:96},{c:'&',x:650,y:250},{c:'0',x:645,y:256},{c:'0',x:655,y:256},{c:'0',x:560,y:118},{c:'0',x:566,y:122},
   {c:'^',x:440,y:330},{c:'^',x:250,y:384},{c:'^',x:600,y:318},{c:'0',x:466,y:362},{c:'0',x:474,y:366},{c:'0',x:470,y:372},{c:'0',x:480,y:360}];
 const ELITES=[
@@ -537,6 +574,13 @@ function makeOld(){const WW=320,WH=180,OX=98,OY=74,CX=252,CY=66,ZONE=[];
     if(edge&&hash(x,y,61)>.28)O[y][x]='X';else if(!edge&&(x-142)%4===0&&(y-30)%4===0&&Math.abs(x-150)+Math.abs(y-36)>4)O[y][x]='p'}
   for(let y=34;y<=38;y++){O[y][140]=' '}
   clear(150,36,2,'u');
+  // Varn was once a royal castle: restore its broken outer bailey, towers and throne keep.
+  for(let y=23;y<=49;y++)for(let x=133;x<=167;x++){ZONE[y][x]=5;G[y][x]='u';if(y===23||y===49||x===133||x===167){if(!(y===49&&Math.abs(x-150)<=2))O[y][x]='Q';}}
+  for(const [x,y] of [[133,23],[167,23],[133,49],[167,49],[148,49],[152,49]])O[y][x]='Z';
+  for(let y=29;y<=43;y++)for(let x=144;x<=156;x++){G[y][x]='u';if(y===29||x===144||x===156||(y===43&&Math.abs(x-150)>1))O[y][x]='Q';}
+  for(const [x,y] of [[144,29],[156,29],[144,43],[156,43]])O[y][x]='Z';
+  O[34][150]='&';O[32][147]='p';O[32][153]='p';O[39][147]='p';O[39][153]='p';
+  for(let x=146;x<=154;x++)G[46][x]='=';for(let x=147;x<=153;x++)O[47][x]='p';
   for(let y=28;y<=44;y++)for(let x=126;x<=136;x++){ZONE[y][x]=5;G[y][x]='.';O[y][x]=(x%2===0&&y%3===0&&hash(x,y,62)<.8)?'J':' '}
   // roads & trails
   for(let x=OX+TW;x<CX;x++){road(x,OY+15);road(x,OY+16)}
@@ -573,6 +617,25 @@ function makeOld(){const WW=320,WH=180,OX=98,OY=74,CX=252,CY=66,ZONE=[];
     for(let k=1;k<=st.r+6;k++)for(const [dx,dy] of [[0,1],[0,-1],[1,0],[-1,0]])for(const w of [-1,0,1]){const x=st.x+dx*k+(dy?w:0),y=st.y+dy*k+(dx?w:0);if(x<2||y<2||x>=WW-2||y>=WH-2)continue;
       O[y][x]=' ';if(G[y][x]==='o'||G[y][x]==='w')G[y][x]='B'}
     clear(st.x,st.y,2,'u')}
+  // Signature architecture for the original boss sites.
+  for(const st of SITES){
+    if(st.id==='roost'){
+      // Dragon's Roost: a high, broken crown of cliff faces, basalt spires and a narrow ascent.
+      for(let y=st.y-10;y<=st.y+10;y++)for(let x=st.x-12;x<=st.x+12;x++){if(x<2||y<2||x>=WW-2||y>=WH-2)continue;const d=Math.hypot((x-st.x)*.9,y-st.y);if(d>10)continue;G[y][x]=d<6?'g':'d';if(d>7.5&&hash(x,y,751)<.55)O[y][x]='C';}
+      for(const [dx,dy] of [[-7,-5],[7,-5],[-8,3],[8,3],[-3,-8],[3,-8]])O[st.y+dy][st.x+dx]='R';
+      for(let i=-2;i<=2;i++){O[st.y+7][st.x+i]='p';G[st.y+7][st.x+i]='g'}
+    }else if(st.id==='tomb'){
+      // Malgorath's tomb: nested masonry chambers, a processional entry and four obelisks.
+      for(let y=st.y-8;y<=st.y+8;y++)for(let x=st.x-9;x<=st.x+9;x++){if(x<2||y<2||x>=WW-2||y>=WH-2)continue;G[y][x]='u';if(Math.abs(x-st.x)===9||Math.abs(y-st.y)===8)O[y][x]='Q';else if(Math.abs(x-st.x)===6||Math.abs(y-st.y)===5)O[y][x]='X';}
+      for(const [dx,dy] of [[-7,-6],[7,-6],[-7,6],[7,6]])O[st.y+dy][st.x+dx]='0';
+      O[st.y+7][st.x]=' ';O[st.y+5][st.x]='&';for(let i=-2;i<=2;i++)O[st.y+9][st.x+i]='=';
+    }else if(st.id==='sanctum'){
+      // Sunken Sanctum: drowned cloister, shallow pools, bronze columns and a central altar.
+      for(let y=st.y-8;y<=st.y+8;y++)for(let x=st.x-10;x<=st.x+10;x++){if(x<2||y<2||x>=WW-2||y>=WH-2)continue;const d=Math.hypot((x-st.x)*.9,y-st.y);if(d>9)continue;G[y][x]=d>7.3?'M':'u';if(d>7.3&&d<8.7&&hash(x,y,752)>.22)O[y][x]='X';}
+      for(const [dx,dy] of [[-6,-5],[6,-5],[-6,5],[6,5],[-3,-6],[3,-6],[-3,6],[3,6]])O[st.y+dy][st.x+dx]='p';
+      O[st.y-3][st.x]='&';O[st.y][st.x]='0';for(let i=-3;i<=3;i++)O[st.y+8][st.x+i]='=';
+    }
+  }
   for(const R of RELIQ){clear(R.x,R.y,2);for(let y=R.y-1;y<=R.y+1;y++)for(let x=R.x-1;x<=R.x+1;x++){if(G[y][x]==='o'||G[y][x]==='w')G[y][x]='u';else if(ZONE[y][x]!==7)G[y][x]='u'}
     O[R.y][R.x]='H';for(const [dx,dy] of [[-2,-2],[2,-2],[-2,2],[2,2]])if(G[R.y+dy][R.x+dx]!=='w')O[R.y+dy][R.x+dx]='p'}
   for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){G[OY+y][OX+x]=town.ground[y][x];O[OY+y][OX+x]=town.obj[y][x];ZONE[OY+y][OX+x]=1}
@@ -631,14 +694,32 @@ function makeWorld(){const old=makeOld();
   for(let x=OX+21;x<=372;x++){road(x,368);road(x,369)}
   for(let x=CX+CW;x<=672;x++){const ty=OY+15+Math.round(Math.sin(x/11)*2);road(x,ty);road(x,ty+1)}
   for(let y=158;y<=OY+15;y++){road(600,y);road(601,y)}
-  // boss arenas
-  for(const b of NBOSS){const fl=b.id==='ignarax'?'a':b.id==='titan'?'*':b.id==='pharaoh'?'s':'s';
-    for(let y=b.y-7;y<=b.y+7;y++)for(let x=b.x-7;x<=b.x+7;x++){if(x<1||y<1||x>=WW-1||y>=WH-1)continue;const d=Math.hypot(x-b.x,y-b.y);if(d>7.2)continue;O[y][x]=' ';
-      G[y][x]=d<5.5?'u':fl;if(d>5.4&&d<6.6&&Math.abs(x-b.x)>1&&Math.abs(y-b.y)>1&&hash(x,y,281)<.55)O[y][x]=b.id==='pharaoh'?'p':'X'}
-    for(let a=0;a<8;a++){const px=b.x+Math.round(Math.cos(a/8*Math.PI*2)*4),py=b.y+Math.round(Math.sin(a/8*Math.PI*2)*4);if(a%2)O[py][px]='p'}}
-  // camps
-  for(const [cx0,cy0] of [[334,80],[300,322],[140,190],[608,166]]){clear(cx0,cy0,4,null);O[cy0][cx0]='j';O[cy0-2][cx0-3]='N';O[cy0-2][cx0+3]='N';O[cy0+1][cx0-2]='l';O[cy0+1][cx0+2]='l';
-    for(let y=cy0-4;y<=cy0+4;y++)for(let x=cx0-4;x<=cx0+4;x++)if('wl'.includes(G[y][x]))G[y][x]=['*','a','s','h'][ZONE[y][x]-8]||'.'}
+  // Distinct boss lairs: each major boss has a landmark built for its theme.
+  for(const b of NBOSS){const fl=b.id==='ignarax'?'a':b.id==='titan'?'*':b.id==='pharaoh'?'s':'h';
+    for(let y=b.y-10;y<=b.y+10;y++)for(let x=b.x-11;x<=b.x+11;x++){if(x<2||y<2||x>=WW-2||y>=WH-2)continue;const d=Math.hypot(x-b.x,y-b.y);if(d>10)continue;O[y][x]=' ';G[y][x]=d<6?'u':fl}
+    if(b.id==='titan'){
+      for(let a=0;a<12;a++){const px=b.x+Math.round(Math.cos(a/12*6.283)*8),py=b.y+Math.round(Math.sin(a/12*6.283)*7);O[py][px]='*';if(a%2===0)O[py+1][px]='*'}
+      for(let i=-3;i<=3;i++){O[b.y+5][b.x+i]='p';O[b.y+6][b.x+i]='p'}
+      for(const [dx,dy] of [[-4,-3],[4,-3],[-4,3],[4,3]])O[b.y+dy][b.x+dx]='&';
+    }else if(b.id==='tidequeen'){
+      for(let y=b.y-7;y<=b.y+7;y++)for(let x=b.x-9;x<=b.x+9;x++)if(x>=0&&x<WW&&y>=0&&y<WH){const d=Math.hypot(x-b.x,(y-b.y)*1.2);if(d>6.5&&d<9){O[y][x]='X';G[y][x]='s'}else if(d<3.5)G[y][x]='M'}
+      for(const [dx,dy] of [[-6,-3],[6,-3],[-7,2],[7,2],[-3,5],[3,5]])O[b.y+dy][b.x+dx]='p';
+      for(const [dx,dy] of [[-3,-1],[3,-1],[-3,2],[3,2]])O[b.y+dy][b.x+dx]='%';O[b.y-5][b.x]='&';O[b.y+4][b.x]='8';
+    }else if(b.id==='pharaoh'){
+      for(let y=b.y-7;y<=b.y+7;y++)for(let x=b.x-8;x<=b.x+8;x++){const dx=Math.abs(x-b.x),dy=Math.abs(y-b.y);if(dx<=7&&dy<=6){G[y][x]='u';if(dx===7||dy===6)O[y][x]='X';else if(dx===5||dy===4)O[y][x]='p'}}
+      for(const [dx,dy] of [[-6,-7],[6,-7],[-6,7],[6,7]])O[b.y+dy][b.x+dx]='0';O[b.y+6][b.x]=' ';O[b.y+5][b.x]='&';for(let i=-2;i<=2;i++)O[b.y+9][b.x+i]='=';
+    }else if(b.id==='ignarax'){
+      for(let y=b.y-9;y<=b.y+9;y++)for(let x=b.x-9;x<=b.x+9;x++){const d=Math.hypot(x-b.x,y-b.y);if(d>6.5&&d<8.5){G[y][x]='l';O[y][x]=' '}else if(d<3.5)G[y][x]='u'}
+      for(let a=0;a<8;a++){const px=b.x+Math.round(Math.cos(a/8*6.283)*9),py=b.y+Math.round(Math.sin(a/8*6.283)*8);O[py][px]='^';if(a%2===0)O[py][px+1]='3'}
+      for(const [dx,dy] of [[-4,-4],[4,-4],[-4,4],[4,4]])O[b.y+dy][b.x+dx]='0';
+    }
+    for(let a=0;a<8;a++){const px=b.x+Math.round(Math.cos(a/8*Math.PI*2)*4),py=b.y+Math.round(Math.sin(a/8*Math.PI*2)*4);if(a%2&&O[py][px]===' ')O[py][px]='p'}
+  }
+  // Faction camps are working encampments, with palisades, lookout posts and supply yards.
+  for(const [cx0,cy0] of [[334,80],[300,322],[140,190],[608,166]]){
+    clear(cx0,cy0,7,null);for(let y=cy0-6;y<=cy0+6;y++)for(let x=cx0-7;x<=cx0+7;x++){if(x<1||y<1||x>=WW-1||y>=WH-1)continue;if(Math.max(Math.abs(x-cx0),Math.abs(y-cy0))===6&&!(y===cy0+6&&Math.abs(x-cx0)<=1))O[y][x]='F';if('wl'.includes(G[y][x]))G[y][x]=['*','a','s','h'][ZONE[y][x]-8]||'.'}
+    O[cy0][cx0]='j';O[cy0-3][cx0-4]='N';O[cy0-3][cx0+4]='N';O[cy0+2][cx0-4]='N';O[cy0+2][cx0+4]='N';O[cy0-1][cx0-2]='l';O[cy0-1][cx0+2]='l';O[cy0+1][cx0-5]='b';O[cy0+1][cx0+5]='x';O[cy0-6][cx0-6]='Z';O[cy0-6][cx0+6]='Z';O[cy0-6][cx0]='+';
+  }
   // ---- named places in the new lands ----
   {const fl=(x,y)=>['*','a','s','h'][ZONE[y][x]-8]||'.',ok=(x,y)=>x>1&&y>1&&x<WW-2&&y<WH-2;
    const put=(x,y,ch)=>{if(ok(x,y)&&!'wlo'.includes(G[y][x]))O[y][x]=ch};
@@ -659,13 +740,39 @@ function makeWorld(){const old=makeOld();
     hamlet:p=>{disc(p.x,p.y,13,'*');for(const b of EXTRAB){for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++){O[y][x]='H';G[y][x]='*'}O[b.y+b.h-1][b.door]='U'}
       put(p.x,p.y+1,'j');put(p.x-4,p.y+3,'+');put(p.x+5,p.y+3,'+');put(p.x+2,p.y+2,'l');for(const [x,y] of [[p.x-9,p.y-6],[p.x+12,p.y+4],[p.x-10,p.y+7]])put(x,y,'1')},
     totems:p=>{disc(p.x,p.y,7);for(let i=0;i<6;i++){const a=i/6*6.283;put(Math.round(p.x+Math.cos(a)*5),Math.round(p.y+Math.sin(a)*4),'!')}put(p.x,p.y,'j');scat(p.x,p.y,6,'4',2,8)},
-    fort:p=>{const F=FORTS[p.f],w=8,h=6;disc(p.x,p.y,11,F.fl);for(let y=p.y-h;y<=p.y+h;y++)for(let x=p.x-w;x<=p.x+w;x++){G[y][x]=F.fl==='a'?'u':'=';const edge=y===p.y-h||y===p.y+h||x===p.x-w||x===p.x+w;if(edge&&!(y===p.y+h&&Math.abs(x-p.x)<=1))O[y][x]=F.wall}
-      for(const [dx,dy] of [[-w,-h],[w,-h],[-w,h],[w,h]])O[p.y+dy][p.x+dx]='Z';for(const [dx,dy] of [[-5,-3],[5,-3],[-5,2],[5,2]])put(p.x+dx,p.y+dy,'N');put(p.x,p.y+1,'j');O[p.y+h][p.x-2]='+';O[p.y+h][p.x+2]='+';
-      for(const [dx,dy] of [[-7,-5],[7,-5],[-7,4],[7,4],[-6,-5],[6,4]])put(p.x+dx,p.y+dy,hash(dx,dy,p.x)<.5?'b':'x');
-      const id=p.f+'fort',ck={id,n:F.boss[0]+"'s War Chest",x:p.x+3,y:p.y-5,il:F.boss[2]+2,g:F.boss[2]*40,req:F.boss[3],text:'The war chest of the fort, stuffed with plunder.'};CACHES.push(ck);
-      for(let i=0;i<2;i++){const lv=F.sen[2];BOSSES.push({id:id+'s'+i,x:p.x+(i?3:-3),y:p.y+h+2,mon:'person',v:F.sen[1],n:F.sen[0],lv,hp:Math.round(lv*26),atk:Math.round(10+lv*2.4),def:Math.round(5+lv*.9),agi:10,xp:lv*45,g:lv*18,drop:'coin',zone:['tundra','volcano','desert','coast'][ZONE[p.y][p.x]-8]||'wilds',scale:.26,bscale:1,elite:1,line:'"Halt! Nobody gets into the fort. Nobody gets out, either."'})}
-      const lv=F.boss[2];BOSSES.push({id:F.boss[3],x:p.x,y:p.y-3,mon:'person',v:F.boss[1],n:F.boss[0],lv,hp:lv*62,atk:Math.round(16+lv*2.9),def:Math.round(8+lv),agi:12,xp:lv*120,g:lv*50,drop:'coin',zone:['tundra','volcano','desert','coast'][ZONE[p.y][p.x]-8]||'wilds',scale:.3,bscale:1.15,line:F.line})},
-    hwy:p=>{disc(p.x,p.y,3);put(p.x-2,p.y-2,'N');put(p.x+2,p.y-2,'j');put(p.x+2,p.y+1,'x');const H=HWY[p.n],lv=H[2];
+    fort:p=>{const F=FORTS[p.f],w=10,h=8;disc(p.x,p.y,14,F.fl);
+      // Broad stone courtyard and complete curtain wall with a guarded southern gate.
+      for(let y=p.y-h;y<=p.y+h;y++)for(let x=p.x-w;x<=p.x+w;x++){if(!ok(x,y))continue;G[y][x]=F.fl==='a'?'u':'=';const edge=y===p.y-h||y===p.y+h||x===p.x-w||x===p.x+w;if(edge&&!(y===p.y+h&&Math.abs(x-p.x)<=1))O[y][x]='Q'}
+      for(const [dx,dy] of [[-w,-h],[w,-h],[-w,h],[w,h],[-2,h],[2,h]])put(p.x+dx,p.y+dy,'Z');
+      // Inner command keep, with its own walls and a southern entrance.
+      for(let y=p.y-4;y<=p.y+3;y++)for(let x=p.x-5;x<=p.x+5;x++){if(!ok(x,y))continue;G[y][x]='u';if(y===p.y-4||x===p.x-5||x===p.x+5||(y===p.y+3&&Math.abs(x-p.x)>1))O[y][x]='Q'}
+      for(const [dx,dy] of [[-5,-4],[5,-4],[-5,3],[5,3]])put(p.x+dx,p.y+dy,'Z');
+      put(p.x-2,p.y-1,'+');put(p.x+2,p.y-1,'+');put(p.x-3,p.y+1,'j');put(p.x+3,p.y+1,'j');put(p.x,p.y+1,'O');
+      for(const [dx,dy] of [[-8,-5],[8,-5],[-8,4],[8,4]])put(p.x+dx,p.y+dy,'N');
+      for(const [dx,dy] of [[-7,1],[7,1],[-7,5],[7,5],[-4,-6],[4,-6]])put(p.x+dx,p.y+dy,hash(dx,dy,p.x)<.5?'b':'x');
+      put(p.x-6,p.y-2,'A');put(p.x+6,p.y-2,'l');
+      // A fort is a working military compound, not an empty courtyard:
+      // side barracks, armory, stable yard, mess, stores, command pennants and a sally port.
+      for(let y=p.y-2;y<=p.y+2;y++){put(p.x-9,y,'Q');put(p.x+9,y,'Q')}
+      for(const [dx,dy,ch] of [[-8,-3,'H'],[-8,3,'H'],[8,-3,'H'],[8,3,'H'],[-7,0,'b'],[7,0,'x'],[-6,5,'N'],[6,5,'N'],[-4,-6,'F'],[4,-6,'F'],[0,-6,'+'],[-2,6,'l'],[2,6,'l']])put(p.x+dx,p.y+dy,ch);
+      for(let i=-4;i<=4;i+=2){put(p.x+i,p.y-7,'p');put(p.x+i,p.y+7,'p')}
+      // Fort-specific details make each faction's stronghold visually distinct.
+      if(p.f==='pirate'){for(const [dx,dy] of [[-12,-5],[12,-5],[-12,5],[12,5]])put(p.x+dx,p.y+dy,'8');put(p.x,p.y-5,'S')}
+      else if(p.f==='reaver'){for(const [dx,dy] of [[-12,-5],[12,-5],[-12,5],[12,5]])put(p.x+dx,p.y+dy,'0');put(p.x,p.y-5,'&')}
+      else if(p.f==='raider'){for(const [dx,dy] of [[-12,-5],[12,-5],[-12,5],[12,5]])put(p.x+dx,p.y+dy,'N');put(p.x,p.y-5,'!')}
+      else{for(const [dx,dy] of [[-12,-5],[12,-5],[-12,5],[12,5]])put(p.x+dx,p.y+dy,'^');put(p.x,p.y-5,'G')}
+      const id=p.f+'fort',ck={id,n:F.boss[0]+"'s War Chest",x:p.x+3,y:p.y-2,il:F.boss[2]+2,g:F.boss[2]*40,req:F.boss[3],text:'The war chest of the fort, secured inside the command keep.'};CACHES.push(ck);
+      for(let i=0;i<2;i++){const lv=F.sen[2];BOSSES.push({id:id+'s'+i,x:p.x+(i?2:-2),y:p.y+h+1,mon:'person',v:F.sen[1],n:F.sen[0],lv,hp:Math.round(lv*26),atk:Math.round(10+lv*2.4),def:Math.round(5+lv*.9),agi:10,xp:lv*45,g:lv*18,drop:'coin',zone:['tundra','volcano','desert','coast'][ZONE[p.y][p.x]-8]||'wilds',scale:.26,bscale:1,elite:1,line:'"Halt! Nobody gets into the fort. Nobody gets out, either."'})}
+      const lv=F.boss[2];BOSSES.push({id:F.boss[3],x:p.x,y:p.y-2,mon:'person',v:F.boss[1],n:F.boss[0],lv,hp:lv*62,atk:Math.round(16+lv*2.9),def:Math.round(8+lv),agi:12,xp:lv*120,g:lv*50,drop:'coin',zone:['tundra','volcano','desert','coast'][ZONE[p.y][p.x]-8]||'wilds',scale:.3,bscale:1.15,line:F.line})},
+    hwy:p=>{disc(p.x,p.y,8);for(let y=p.y-7;y<=p.y+7;y++)for(let x=p.x-7;x<=p.x+7;x++)if(ok(x,y)&&Math.max(Math.abs(x-p.x),Math.abs(y-p.y))===7&&!(y===p.y+7&&Math.abs(x-p.x)<=1))put(x,y,'F');
+      // Bandit camps have a guarded choke point, sleeping tents, a loot shelter,
+      // a crude prisoner pen, cooking fire, lookout platform and scattered stores.
+      for(const [dx,dy] of [[-4,-4],[0,-5],[4,-4],[-4,3],[4,3]])put(p.x+dx,p.y+dy,'N');
+      put(p.x,p.y,'j');put(p.x+2,p.y+1,'x');put(p.x-2,p.y+1,'b');put(p.x+4,p.y-1,'A');put(p.x-4,p.y-1,'l');put(p.x,p.y-4,'Z');put(p.x-1,p.y+4,'h');put(p.x+1,p.y+4,'h');
+      for(const [dx,dy] of [[-6,-6],[6,-6],[-6,6],[6,6]])put(p.x+dx,p.y+dy,'Z');
+      for(let i=-3;i<=3;i++)if(i%2===0){put(p.x+i,p.y-6,'b');put(p.x+i,p.y+6,'x')}
+      for(const [dx,dy] of [[-2,-2],[2,-2],[-2,2],[2,2]])put(p.x+dx,p.y+2,'4');
+      const H=HWY[p.n],lv=H[2];
       BOSSES.push({id:'hwy_'+H[0].split(' ')[0].toLowerCase(),x:p.x,y:p.y,mon:'person',v:H[1],n:H[0],lv,hp:lv*30,atk:Math.round(10+lv*2.5),def:Math.round(4+lv*.8),agi:14,xp:lv*55,g:lv*30,drop:'coin',zone:['tundra','volcano','desert','coast'][ZONE[p.y][p.x]-8]||'wilds',scale:.26,bscale:1,elite:1,
         line:`"${['Your gold or your life. Actually, I\'ll take both.','Toll road, friend. Price just went up.','Nice boots. They\'re mine now.'][lv%3]}"`})},
     dungeon:p=>{disc(p.x,p.y,4);for(let y=p.y-1;y<=p.y+1;y++)for(let x=p.x-1;x<=p.x+1;x++)G[y][x]='u';G[p.y][p.x]='V';put(p.x-1,p.y-1,'R');put(p.x+1,p.y-1,'R');put(p.x-2,p.y,'R');put(p.x+2,p.y,'R');for(let y=p.y+1;y<=p.y+3;y++)O[y][p.x]=' ';
@@ -691,8 +798,74 @@ function makeWorld(){const old=makeOld();
     embergrove:p=>{disc(p.x,p.y,9,'a');for(let y=p.y-9;y<=p.y+9;y++)for(let x=p.x-9;x<=p.x+9;x++){const d=Math.hypot(x-p.x,y-p.y);if(d>9||d<2.5)continue;const h=hash(x,y,409);if(h<.3)put(x,y,'3');else if(h<.38)put(x,y,'m')}put(p.x,p.y,'j')},
     brimstone:p=>{disc(p.x,p.y,8,'a');for(const [dx,dy] of [[-4,-3],[3,-4],[5,2],[-3,4],[0,0]])put(p.x+dx,p.y+dy,'^');scat(p.x,p.y,7,'4',5,12);scat(p.x,p.y,7,'R',3,13)},
     basalt:p=>{disc(p.x,p.y,7,'u');ring(p.x,p.y,5,'p',1,0);put(p.x,p.y,'@');for(let y=p.y+1;y<=p.y+5;y++)O[y][p.x]=' '},
-    ridge:p=>{disc(p.x,p.y,9,'a');for(let i=0;i<5;i++)put(p.x-8+i*4,p.y-2+Math.round(Math.cos(i)*2),'%');scat(p.x,p.y,8,'4',6,14);put(p.x+8,p.y+3,'&')}};
+    ridge:p=>{disc(p.x,p.y,9,'a');for(let i=0;i<5;i++)put(p.x-8+i*4,p.y-2+Math.round(Math.cos(i)*2),'%');scat(p.x,p.y,8,'4',6,14);put(p.x+8,p.y+3,'&')},
+    city:p=>{
+      // Walled city district: a proper gatehouse, towers, paved avenues, plaza,
+      // market lanes, wells, lamps and a ring of walkable civic buildings.
+      const cx=p.x,cy=p.y,stone=p.city==='sunspire'||p.city==='ironhollow'?'u':p.city==='emberwatch'?'g':p.city==='mirewatch'?'h':'s';
+      disc(cx,cy,22,stone);
+      for(let y=cy-13;y<=cy+13;y++)for(let x=cx-19;x<=cx+19;x++){
+        if(!ok(x,y))continue;G[y][x]=stone;
+        if((x===cx-19||x===cx+19||y===cy-13||y===cy+13)&&!(y===cy+13&&Math.abs(x-cx)<=2)&&!(y===cy-13&&Math.abs(x-cx)<=2)&&!(x===cx-19&&Math.abs(y-cy)<=1)&&!(x===cx+19&&Math.abs(y-cy)<=1))O[y][x]='Q';
+      }
+      for(const [dx,dy] of [[-19,-13],[19,-13],[-19,13],[19,13],[-19,0],[19,0],[0,-13],[0,13]])put(cx+dx,cy+dy,'Z');
+      // Gatehouse towers and a broad four-way avenue.
+      for(const dx of [-2,2]){put(cx+dx,cy+13,'Z');put(cx+dx,cy-13,'Z')}
+      for(let x=cx-18;x<=cx+18;x++){if(x!==cx){G[cy][x]='=';O[cy][x]=' '}if(x!==cx){G[cy-1][x]='=';O[cy-1][x]=' '}}
+      for(let y=cy-12;y<=cy+12;y++){if(y!==cy){G[y][cx]='=';O[y][cx]=' '}if(y!==cy){G[y][cx+1]='=';O[y][cx+1]=' '}}
+      // Grand central plaza, fountain, statue, notice board and lamp-lined square.
+      for(let y=cy-4;y<=cy+4;y++)for(let x=cx-6;x<=cx+6;x++){G[y][x]='u';O[y][x]=' '}
+      for(const [dx,dy] of [[-5,-3],[5,-3],[-5,3],[5,3]])put(cx+dx,cy+dy,'L');
+      put(cx,cy-2,'O');put(cx,cy+2,'P');put(cx-2,cy,'b');put(cx+2,cy,'x');
+      // Decorative inner courtyards and garden beds.
+      for(const [dx,dy] of [[-12,-7],[12,-7],[-12,7],[12,7]]){
+        for(let yy=-2;yy<=2;yy++)for(let xx=-3;xx<=3;xx++){if(Math.abs(xx)===3||Math.abs(yy)===2)put(cx+dx+xx,cy+dy+yy,'P');else if((xx+yy)%2===0)put(cx+dx+xx,cy+dy+yy,'T')}
+      }
+      for(const b of CITYBUILD.filter(q=>q.city===p.city)){
+        for(let yy=b.y;yy<b.y+b.h;yy++)for(let xx=b.x;xx<b.x+b.w;xx++){if(ok(xx,yy)){G[yy][xx]=stone;O[yy][xx]='H'}}
+        if(ok(b.door,b.y+b.h-1))O[b.y+b.h-1][b.door]='U';
+      }
+      // City-specific identity: docks, sunken cisterns or a defensive ash rampart.
+      if(p.city==='stormhaven'){
+        for(let x=cx-17;x<=cx-9;x++){G[cy+8][x]='B';O[cy+8][x]=' '}for(let x=cx-17;x<=cx-9;x+=2)put(x,cy+6,'L');
+        for(const [dx,dy] of [[-15,-8],[-11,-8],[15,8],[11,8]])put(cx+dx,cy+dy,'8');
+      }else if(p.city==='sunspire'){
+        for(const [dx,dy] of [[-15,-8],[15,-8],[-15,8],[15,8]]){put(cx+dx,cy+dy,'0');put(cx+dx+1,cy+dy,'p')}
+        for(let i=-5;i<=5;i+=2){put(cx+i,cy-6,'p');put(cx+i,cy+6,'p')}
+      }else if(p.city==='mirewatch'){
+        // A layered marsh moat and a maze of timber boardwalks connect stilted wards.
+        for(let y=cy-17;y<=cy+17;y++)for(let x=cx-22;x<=cx+22;x++)if(Math.abs(x-cx)>19||Math.abs(y-cy)>13){if(ok(x,y)&&hash(x,y,882)>.2){G[y][x]='M';O[y][x]=' '}}
+        for(let x=cx-20;x<=cx+20;x++){G[cy-15][x]='B';G[cy+15][x]='B';if(x%3===0){O[cy-15][x]='I';O[cy+15][x]='I'}}
+        for(let y=cy-14;y<=cy+14;y++){G[y][cx-20]='B';G[y][cx+20]='B';if(y%3===0){O[y][cx-20]='I';O[y][cx+20]='I'}}
+        for(let i=-16;i<=16;i+=4){put(cx+i,cy-12,'n');put(cx+i,cy+12,'n')}
+        for(const [dx,dy] of [[-15,-8],[15,-8],[-15,8],[15,8]]){put(cx+dx,cy+dy,'Y');put(cx+dx+1,cy+dy,'Y')}
+        for(let y=cy-8;y<=cy+8;y+=4)for(let x=cx-17;x<=cx+17;x+=5){G[y][x]='B';O[y][x]=' '}
+      }else if(p.city==='ironhollow'){
+        // Mountain galleries, switchback ramps, ore yards and monumental clan statues.
+        for(let r=15;r<=20;r+=5)ring(cx,cy,r,'X',.9,2);
+        for(const [dx,dy] of [[-15,-8],[15,-8],[-15,8],[15,8]]){put(cx+dx,cy+dy,'Z');put(cx+dx+1,cy+dy,'0')}
+        for(let i=-16;i<=16;i+=4){put(cx+i,cy-11,'F');put(cx+i,cy+11,'F')}
+        for(let y=cy-10;y<=cy+10;y+=5)for(let x=cx-16;x<=cx+16;x+=8){put(x,y,'O');if(x<cx)put(x+1,y,'p')}
+        for(let i=0;i<5;i++){G[cy+5+i][cx-10+i]='=';G[cy-5-i][cx+10-i]='='}
+      }else{
+        for(const [dx,dy] of [[-16,-8],[16,-8],[-16,8],[16,8]])put(cx+dx,cy+dy,'^');
+        for(let x=cx-18;x<=cx+18;x+=4)if(x!==cx-2&&x!==cx+2)put(x,cy-13,'F');
+      }
+      put(cx,cy+13,' ');put(cx,cy-13,' ');put(cx-19,cy,' ');put(cx+19,cy,' ');
+    }};
    for(const p of PLACES){if(p.x===0){const sx=shoreX(p.y);p.x=p.b==='chapel'?sx+3:sx+9}B[p.b](p)}
+   // Extend the major settlements beyond their central squares: outer wards,
+   // secondary gates, waterworks, terraces, defensive towers and connected roads.
+   for(const p of PLACES.filter(q=>q.b==='city')){
+     const x=p.x,y=p.y;
+     for(let i=-15;i<=15;i+=5){put(x+i,y-16,'Z');put(x+i,y+16,'Z')}
+     for(let j=-10;j<=10;j+=5){put(x-21,y+j,'Z');put(x+21,y+j,'Z')}
+     for(let j=-15;j<=15;j++){if(j%3===0){G[y+j][x-22]='=';G[y+j][x+22]='='}}
+     for(let i=-22;i<=22;i++){if(i%3===0){G[y-17][x+i]='=';G[y+17][x+i]='='}}
+     for(const [dx,dy] of [[-23,-17],[23,-17],[-23,17],[23,17]])if(ok(x+dx,y+dy))put(x+dx,y+dy,'Z');
+     // Four approach roads link the city gates to the regional road network.
+     for(let k=18;k<=27;k++){if(ok(x,y+k))G[y+k][x]='=';if(ok(x,y-k))G[y-k][x]='=';if(ok(x+k,y))G[y][x+k]='=';if(ok(x-k,y))G[y][x-k]='='}
+   }
    for(const w of WAYS)if(!PLACES.some(p=>p.x===w.x&&p.y===w.y)){clear(w.x,w.y,2,null);O[w.y][w.x]='@'}
    for(const p of PLACES)NSITES.push({n:p.n,x:p.x,y:p.y,r:p.r});
    sign(PL('serai').x+3,PL('serai').y+6,'Caravanserai of Two Moons','REST. WATER. NO FIGHTING. (The last rule is mostly a suggestion.)');sign(PL('djinn').x+2,PL('djinn').y+6,"Djinn's Lamp",'Three wishes, one per customer. Wishes not guaranteed. The management is not responsible for curses.');
@@ -719,14 +892,62 @@ function makeWorld(){const old=makeOld();
     // the wreck of the Merry Widow
     const wy=274,wx=shoreX(wy)+3;clear(wx,wy,4,'s');O[wy][wx]='8';const ch=CACHES[0];ch.x=wx+4;ch.y=wy+2;
     const sj=ELITES[0];sj.x=shoreX(262)+7;sj.y=262;clear(sj.x,sj.y,3,'s')}
+  // Forts receive a second defensive envelope: ditch, glacis, bridge, watch fires,
+  // siege engines and supply yards beyond the main curtain wall.
+  for(const p of PLACES.filter(q=>q.b==='fort')){
+    const inWorld=(x,y)=>x>1&&y>1&&x<WW-2&&y<WH-2;
+    const wet=p.f==='pirate',hot=p.f==='cultist';
+    for(let y=p.y-12;y<=p.y+12;y++)for(let x=p.x-14;x<=p.x+14;x++){
+      if(!inWorld(x,y))continue;const d=Math.max(Math.abs(x-p.x)/14,Math.abs(y-p.y)/12);
+      if(d>.86&&d<.96){G[y][x]=wet?'w':hot?'l':p.f==='reaver'?'i':'s';O[y][x]=' '}
+    }
+    for(let i=-3;i<=3;i++){G[p.y+13][p.x+i]='=';O[p.y+13][p.x+i]=' '}
+    for(const [dx,dy] of [[-12,-9],[12,-9],[-12,9],[12,9]]){O[p.y+dy][p.x+dx]='Z';O[p.y+dy][p.x+dx+(dx<0?1:-1)]='n'}
+    for(const [dx,dy] of [[-10,0],[10,0],[-5,-10],[5,-10]]){O[p.y+dy][p.x+dx]='B';O[p.y+dy+1][p.x+dx]='b'}
+    for(let i=-5;i<=5;i+=2){O[p.y-11][p.x+i]='F';O[p.y+10][p.x+i]='F'}
+  }
   // landmarks, caches and elites
   for(const L of LANDMARKS)clear(L.x,L.y,L.c==='9'?3:2);for(const L of LANDMARKS){for(let y=L.y-1;y<=L.y+1;y++)for(let x=L.x-1;x<=L.x+1;x++)if('wlo'.includes(G[y][x]))G[y][x]=['*','a','s','h'][ZONE[y][x]-8]||'.';O[L.y][L.x]=L.c}
   for(const q of CACHES){clear(q.x,q.y,1);if('wlo'.includes(G[q.y][q.x]))G[q.y][q.x]='s';O[q.y][q.x]='6'}
   for(const e of ELITES){clear(e.x,e.y,3);for(let y=e.y-2;y<=e.y+2;y++)for(let x=e.x-2;x<=e.x+2;x++)if('wlo'.includes(G[y][x]))G[y][x]=['*','a','s','h'][ZONE[y][x]-8]||'.';BOSSES.push(e)}
+  // Elite lairs are recognizable arenas, not just clear circles around a monster.
+  for(const e of ELITES){
+    if(e.id==='snapjaw'){
+      clear(e.x,e.y,7,'s');for(let a=0;a<10;a++){const x=e.x+Math.round(Math.cos(a/10*6.283)*6),y=e.y+Math.round(Math.sin(a/10*6.283)*5);O[y][x]=a%2?'R':'4'}
+      for(const [dx,dy] of [[-3,-2],[4,-3],[-4,3],[3,4]])O[e.y+dy][e.x+dx]='8';O[e.y-5][e.x]='%';
+    }else if(e.id==='palefang'){
+      clear(e.x,e.y,7,'*');for(let a=0;a<8;a++){const x=e.x+Math.round(Math.cos(a/8*6.283)*6),y=e.y+Math.round(Math.sin(a/8*6.283)*5);O[y][x]=a%2?'*':'4'}
+      for(const [dx,dy] of [[-3,-2],[3,-2],[-3,2],[3,2]])O[e.y+dy][e.x+dx]='p';O[e.y-5][e.x]='&';
+    }else if(e.id==='scorpqueen'){
+      clear(e.x,e.y,8,'D');for(let a=0;a<12;a++){const x=e.x+Math.round(Math.cos(a/12*6.283)*7),y=e.y+Math.round(Math.sin(a/12*6.283)*6);O[y][x]=a%3===0?'0':'R'}
+      for(let y=e.y-3;y<=e.y+3;y++)for(let x=e.x-3;x<=e.x+3;x++)if(Math.abs(x-e.x)+Math.abs(y-e.y)===4)O[y][x]='X';O[e.y-5][e.x]='&';
+    }else if(e.id==='cinderjaw'){
+      clear(e.x,e.y,8,'a');for(let a=0;a<10;a++){const x=e.x+Math.round(Math.cos(a/10*6.283)*7),y=e.y+Math.round(Math.sin(a/10*6.283)*7);O[y][x]=a%2?'^':'3'}
+      for(const [dx,dy] of [[-4,-4],[4,-4],[-4,4],[4,4]])O[e.y+dy][e.x+dx]='0';for(let i=-2;i<=2;i++)G[e.y+5][e.x+i]='l';
+    }
+  }
   sign(476,92,'Hot Spring','Steam rises from a pool of warm water in the middle of the snow. Bathe here to restore your strength.');
   sign(658,246,'Sphinx of Qadim','Half buried in sand, the Sphinx stares east. Travelers say it once asked riddles. Now it only watches.');
   // hermit by Mirror Lake and the peddler on the south road
   clear(437,152,2,'.');O[152][435]='N';O[154][438]='l';clear(OX+25,OY+TH+8,1,null);
+  // Major lairs gain monumental approach architecture so their scale and identity
+  // are visible well before the player reaches the boss itself.
+  {const ok=(x,y)=>x>1&&y>1&&x<WW-2&&y<WH-2,put=(x,y,ch)=>{if(ok(x,y)&&!'wlo'.includes(G[y][x]))O[y][x]=ch};
+    const t=NBOSS.find(b=>b.id==='titan');
+    for(let r=11;r<=15;r+=2)for(let a=0;a<24;a++){const x=t.x+Math.round(Math.cos(a/24*6.283)*r),y=t.y+Math.round(Math.sin(a/24*6.283)*r*.7);if(ok(x,y)&&a%2===0)put(x,y,a%4?'*':'Z')}
+    for(let y=t.y+8;y<=t.y+15;y++)for(let x=t.x-4;x<=t.x+4;x++)if(ok(x,y)&&Math.abs(x-t.x)<=Math.floor((y-t.y+1)/2))G[y][x]='=';
+    for(const [dx,dy] of [[-10,-7],[10,-7],[-10,7],[10,7]])put(t.x+dx,t.y+dy,'&');
+    const q=NBOSS.find(b=>b.id==='tidequeen');
+    for(let r=11;r<=14;r+=3)for(let a=0;a<28;a++){const x=q.x+Math.round(Math.cos(a/28*6.283)*r),y=q.y+Math.round(Math.sin(a/28*6.283)*r*.8);if(ok(x,y)&&a%2===0)put(x,y,a%4?'p':'0')}
+    for(const [dx,dy] of [[-11,-5],[11,-5],[-11,5],[11,5],[-5,-10],[5,-10]]){put(q.x+dx,q.y+dy,'8');put(q.x+dx+1,q.y+dy,'R')}
+    const ph=NBOSS.find(b=>b.id==='pharaoh');
+    for(let i=-13;i<=13;i+=2){put(ph.x+i,ph.y-11,'=');put(ph.x+i,ph.y+11,'=')}
+    for(const [dx,dy] of [[-12,-9],[12,-9],[-12,9],[12,9]]){put(ph.x+dx,ph.y+dy,'0');put(ph.x+dx+1,ph.y+dy,'0');put(ph.x+dx,ph.y+dy+1,'p')}
+    for(let y=ph.y+12;y<=ph.y+17;y++)for(let x=ph.x-2;x<=ph.x+2;x++)if(ok(x,y))G[y][x]='=';
+    const ig=NBOSS.find(b=>b.id==='ignarax');
+    for(let r=11;r<=15;r+=2)for(let a=0;a<24;a++){const x=ig.x+Math.round(Math.cos(a/24*6.283)*r),y=ig.y+Math.round(Math.sin(a/24*6.283)*r);if(ok(x,y)&&a%2===0)put(x,y,a%4?'^':'Z')}
+    for(const [dx,dy] of [[-11,-9],[11,-9],[-11,9],[11,9]]){put(ig.x+dx,ig.y+dy,'0');put(ig.x+dx+1,ig.y+dy,'F')}
+  }
   for(const b of NBOSS)BOSSES.push(b);for(const st of NSITES){const b=NBOSS.find(q=>q.x===st.x&&q.y===st.y)}
   sign(OFX-3,OY+13,'Signpost','WEST: the Stormcoast. Salt wind, sirens on the rocks, and the Tide Queen in her grotto by the sea.');
   sign(OX+19,OFY-4,'Signpost','NORTH: Frostpeak Tundra. Wolfsbane Camp lies up the road. Beyond it, the summit where the Frost Titan sleeps.');
@@ -735,7 +956,7 @@ function makeWorld(){const old=makeOld();
   sign(604,159,'Oasis of Qadim','Cool water and date palms. Travelers rest here before the long walk to the tomb.');
   for(let y=0;y<WH;y++)for(let x=0;x<WW;x++)if((x<2||y<2||x>=WW-2||y>=WH-2)&&G[y][x]!=='w')O[y][x]=ZONE[y][x]===2?'K':ZONE[y][x]===0?'T':'C';
   // make sure every reliquary, grimoire and boss can be walked to from town
-  {const SOL=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+'),NAT=new Set('TKRYCcIX_J1235');
+  {const SOL=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q'),NAT=new Set('TKRYCcIX_J1235');
     const ok=(x,y)=>{if(x<1||y<1||x>=WW-1||y>=WH-1)return false;const o=O[y][x];if(o!==' '&&SOL.has(o))return false;const g=G[y][x];return g!=='w'&&g!=='W'&&g!=='o'&&g!=='l'};
     const R=new Uint8Array(WW*WH),q=new Int32Array(WW*WH);let qh=0,qt=0;const s0=(OY+11)*WW+OX+7;R[s0]=1;q[qt++]=s0;
     while(qh<qt){const c=q[qh++],x=c%WW,y=(c/WW)|0;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,k=ny*WW+nx;if(!R[k]&&ok(nx,ny)){R[k]=1;q[qt++]=k}}}
@@ -751,10 +972,19 @@ function SALTB(vx){return [{x:vx+3,y:214,w:9,h:7,roof:'thatch',door:vx+7,kind:'i
   {x:vx+25,y:215,w:6,h:6,roof:'tile',door:vx+27,kind:'house',shutter:'#8b2e24',msg:'Locked. Nets hang drying by the door, and it smells strongly of fish.'},
   {x:vx+25,y:236,w:5,h:5,roof:'thatch',door:vx+27,kind:'house',shutter:'#2f5f8a',chimney:1,msg:'Locked. Someone inside is singing a sea shanty, badly.'}]}
 const WORLD=makeWorld();
+/* Safe zones: cities, villages and friendly camps. Wild monsters never spawn or walk inside these. */
+const SAFE=new Uint8Array(WW*WH);
+(function(){const rect=(x0,y0,x1,y1)=>{for(let y=Math.max(0,y0);y<=Math.min(WH-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(WW-1,x1);x++)SAFE[y*WW+x]=1};
+  const circ=(cx,cy,r)=>rect(cx-r,cy-r,cx+r,cy+r);
+  rect(OX-3,OY-3,OX+TW+2,OY+TH+2);rect(CX-3,CY-3,CX+CW+2,CY+CH+2);
+  for(const p of PLACES){if(p.b==='city')rect(p.x-23,p.y-17,p.x+23,p.y+17);else if(p.b==='hamlet')circ(p.x,p.y,15);else if(p.b==='nomads')circ(p.x,p.y,11)}
+  if(SALT.sx!=null)rect(SALT.sx-2,210,SALT.vx+38,252);if(SALT.lx!=null)circ(SALT.lx,SALT.ly,7);
+  for(const [x,y,r] of [[600,150,11],[334,84,12],[300,322,11],[140,190,9],[437,152,6],[70+OFX,100+OFY,8]])circ(x,y,r)})();
+const isSafe=(x,y)=>x>=0&&y>=0&&x<WW&&y<WH&&SAFE[y*WW+x]===1;
 const GATES=new Set([[OX,OY+15],[OX,OY+16],[OX+TW-1,OY+15],[OX+TW-1,OY+16],[OX+21,OY],[OX+22,OY],[OX+21,OY+TH-1],[OX+22,OY+TH-1],[CX,CY+22],[CX,CY+23],[CX,CY+24],[CX+CW-1,CY+22],[CX+CW-1,CY+23],[CX+CW-1,CY+24]].map(a=>a.join(',')));
 for(const b of BUILDINGS){b.x+=OX;b.y+=OY;b.door+=OX}
 for(const b of CBUILD){b.x+=CX;b.y+=CY;b.door+=CX;BUILDINGS.push(b)}
-for(const b of SALTB(SALT.vx))BUILDINGS.push(b);for(const b of EXTRAB)BUILDINGS.push(b);
+for(const b of SALTB(SALT.vx))BUILDINGS.push(b);for(const b of EXTRAB)BUILDINGS.push(b);for(const b of CITYBUILD)BUILDINGS.push(b);
 const MAPS={
   world:{name:'Hollowmere',outdoor:true,tiles:WORLD.ground,obj:WORLD.obj,npcs:[
     {x:OX+42,y:OY+14,kind:'guard',name:'Gate Guard',lines:['"The meadows are tame by day. Slimes, bees, the odd boar."','"After dark the dead walk out there. Fire works best on them, so carry Mana Tonics."','"Follow the east road to Mirror Lake. Prettiest view in the realm."']},
@@ -807,6 +1037,28 @@ const MAPS={
 "#n.....r.....n#",
 "#######D#######"]}};
 Object.assign(MAPS,buildInteriors());
+// New city interiors: each settlement has usable civic buildings with its own NPCs.
+const cityRoom=(name,keeper,floor='stone',npc=[])=>({name,outdoor:false,floor,stone:floor==='wood'?'#756653':'#8c8578',mortar:floor==='wood'?'#51483c':'#696257',keeper,tiles:[
+  '#4#5##6##5#4#', '#...........#', '#..cTc.cTc..#', '#...........#', '#.PP.....PP.#', '#...........#', '#..cTc.cTc..#', '#...........#', '#b....rrr..x#', '#...........#', '######D######'
+],npcs:npc});
+MAPS.storm_customs=cityRoom('Stormhaven Customs House','guildmaster','wood',[{x:6,y:2,kind:'guildmaster',name:'Harbor Chancellor Elira',lines:['"Every ship entering Stormhaven is counted, taxed, and inspected. Especially the ones that claim to be empty."','"The Free Port has no king. We answer to the charter, the harbor council, and occasionally the weather."']}]);
+MAPS.storm_inn=cityRoom('The Gannet and Gull','innkeeper','wood',[{x:6,y:2,kind:'innkeeper',name:'Marlow the Innkeeper',lines:['"Rooms upstairs, stew downstairs, and no swordplay near the windows. The sea already breaks enough things."','"Stormhaven grew rich on honest trade. The smugglers helped, of course, but we do not put that in the charter."']}]);
+MAPS.storm_market=cityRoom('Stormhaven Fish Market','merchant','wood',[{x:6,y:2,kind:'merchant',name:'Netta Salt-Hand',lines:['"Fresh catch at dawn, smoked fish by noon, and gossip all day. That is the proper order of business."']}]);
+MAPS.storm_chapel=cityRoom('Chapel of the Seven Tides','priest','stone',[{x:6,y:2,kind:'priest',name:'Sister Caldra',lines:['"The sea is not cruel. It is simply older than our promises."','"Light a candle for those lost beyond the breakwater."']}]);
+MAPS.sun_palace=cityRoom('Sunspire: Hall of the Veiled Emir','lord','stone',[{x:6,y:2,kind:'lord',name:'Emir Samir al-Qadim',lines:['"Welcome to Sunspire, traveler. The desert tests all who cross it; the city rewards those who arrive with courtesy."','"The old Pharaoh ruled these sands by fear. We keep the wells open so that no one must kneel to him again."']}]);
+MAPS.sun_inn=cityRoom('The House of Blue Lanterns','innkeeper','wood',[{x:6,y:2,kind:'innkeeper',name:'Dalia of the Blue Lanterns',lines:['"A cool room, clean water, and a story from every road. That is what a traveler deserves."']}]);
+MAPS.sun_bazaar=cityRoom('Sunspire Grand Bazaar','merchant','wood',[{x:6,y:2,kind:'merchant',name:'Farouk the Broker',lines:['"Silk from the coast, glass from the dunes, steel from the north. Everything has a price; not everything has a fair one."']}]);
+MAPS.sun_scriptorium=cityRoom('House of Maps and Scribes','librarian','stone',[{x:6,y:2,kind:'librarian',name:'Archivist Nadiya',lines:['"Our oldest maps show a sea where the desert now lies. The bones in the east are not merely old; they are drowned history."']}]);
+MAPS.ember_hall=cityRoom('Emberwatch Warden Hall','guildmaster','stone',[{x:6,y:2,kind:'guildmaster',name:'Marshal Dren',lines:['"Emberwatch stands between the farms and the fire mountains. We keep the road open, the wells guarded, and the panic outside the walls."','"If the volcano speaks, report it here. If it roars, run first and report later."']}]);
+MAPS.ember_forge=cityRoom('The Red Anvil Forge','smith','stone',[{x:6,y:2,kind:'smith',name:'Master Smith Orvek',lines:['"Obsidian takes a keen edge, but it hates a careless hand. Bring me good ore and I will make it sing."']}]);
+MAPS.ember_shop=cityRoom('Emberwatch Provisioners','merchant','wood',[{x:6,y:2,kind:'merchant',name:'Talla Coal-Braid',lines:['"Water skins, ash wraps, climbing hooks. If you are going toward the Crags, buy all three."']}]);
+MAPS.ember_shrine=cityRoom('Shrine of the Last Ember','priest','stone',[{x:6,y:2,kind:'priest',name:'Keeper Sera',lines:['"A flame can warm a home or consume a kingdom. We pray to remember the difference."']}]);
+MAPS.mire_hall=cityRoom('Mirewatch Reedwardens Hall','guildmaster','stone',[{x:6,y:2,kind:'guildmaster',name:'Warden-Captain Edda Fen',lines:['"The marsh is a maze, and the lanterns are its stars. Follow the blue lights home; never follow the green ones."','"Mirewatch stands on piles driven into the old road. Beneath the peat lie older streets, and older things."']}]);
+MAPS.mire_inn=cityRoom('The Lantern Eel','innkeeper','wood',[{x:6,y:2,kind:'innkeeper',name:'Bramble Reed',lines:['"Dry boots, hot broth, and a roof that does not float away. Best inn in the marsh, and I will fight anyone who says otherwise."']}]);
+MAPS.iron_hall=cityRoom('Ironhollow Clan Assembly','guildmaster','stone',[{x:6,y:2,kind:'guildmaster',name:'Thane Brynja Stonevein',lines:['"The mountain is our roof and our shield. We do not mine blindly; every tunnel has a name and a keeper."','"The Deep Forge was built around a fallen star. The oldest clan songs say it still whispers."']}]);
+MAPS.iron_forge=cityRoom('Ironhollow Deep Forge','smith','stone',[{x:6,y:2,kind:'smith',name:'Runesmith Dorrik',lines:['"Bring me ore from the lower galleries. I can shape it into armor that will outlast the mountain itself."']}]);
+// The generic city rooms place their exit door at (6,10); spawn inside on (6,9).
+for(const b of CITYBUILD)if(b.to){b.to.x=6;b.to.y=9}
 MAPS.world.warps={};
 {const DS={grotto:{name:'Blackwater Grotto',stone:'#3a5a5a',mortar:'#264040',liquid:['#123a44','#2a6a7a','#c8e8e8'],seed:11,boss:{id:'mortlake',mon:'mortlake',n:'Admiral Mortlake, the Drowned',lv:17,hp:1250,atk:72,def:22,agi:9,undead:1,xp:3000,g:1800,drop:'admiralhat',zone:'coast',scale:.3,bscale:1.2,line:'Seawater pours from the joints of a barnacled suit of armor. "All hands lost, and still I command. You will make a fine deckhand."'}},
   icecave:{name:'Frostmaw Caverns',stone:'#8aa8bc',mortar:'#5a7890',seed:15,boss:{id:'vesna',mon:'vesna',n:'Vesna the Ice Witch',lv:18,hp:1300,atk:74,def:20,agi:12,xp:3200,g:1900,drop:'witchcrown',zone:'tundra',scale:.25,bscale:.95,line:'Frost creeps over the walls as a pale woman turns. "Another warm heart for my collection. How lovely."'}},
@@ -837,6 +1089,21 @@ MAPS.elder={name:"Elder Maren's Hut",outdoor:false,floor:'wood',stone:'#6d655a',
 "#####D#####"],npcs:[{x:5,y:2,kind:'elder',name:'Elder Maren',lines:['"The sea gives and the sea takes. Lately it only takes."','"My grandmother saw the Tide Queen rise when she was a girl. Now I have seen it too."']}]};
 for(const b of BUILDINGS)if(b.to)MAPS[b.to.map].exit={x:b.door,y:b.y+b.h};
 MAPS.world.npcs.push(
+  {x:116,y:219,kind:'guard',name:'Stormhaven Gate Captain',lines:['"Welcome to Stormhaven, free port of the western coast. Keep your steel sheathed and your coin purse close."','"The harbor council keeps the peace. The tide keeps the rest."']},
+  {x:108,y:221,kind:'sailor',name:'Dockmaster Pell',lines:['"The western piers are for fishing boats. The eastern quay is for merchants. The northern slips are for ships that do not ask questions."']},
+  {x:124,y:221,kind:'adventurer',name:'Guild Scout Renn',lines:['"Stormhaven pays well for maps of the drowned coast. If you find a safe passage, bring it to the Customs House."']},
+  {x:520,y:239,kind:'royalguard',name:'Sunspire Palace Guard',lines:['"You stand in the city of the Golden Veil. Respect the wells, respect the charter, and do not enter the palace armed."']},
+  {x:514,y:242,kind:'nomad',name:'Water-Seller Zuleika',lines:['"Cold water, dates, and shade. Three things worth more than gold beneath this sun."']},
+  {x:527,y:242,kind:'sage',name:'Desert Cartographer Ilyas',lines:['"The Pharaoh\'s tomb is not the oldest thing beneath the sand. It is merely the thing that wants you to notice it."']},
+  {x:365,y:339,kind:'guard',name:'Emberwatch Watch Sergeant',lines:['"This city was built to keep the fire-road open. The bastion to the west guards the pass; we guard the people behind it."']},
+  {x:358,y:342,kind:'ashsmith',name:'Ore-Surveyor Brakka',lines:['"The red seams in the hills are rich with iron. The black seams are rich with trouble."']},
+  {x:372,y:342,kind:'adventurer',name:'Crag Runner Tovin',lines:['"Never climb toward a plume of smoke. It means the mountain is breathing out."']},
+  {x:90,y:119,kind:'guard',name:'Mirewatch Lantern Guard',lines:['"Keep to the raised walks after dusk. The peat is deep enough to swallow a horse."','"If a lantern glows green, turn around. Blue means the wardens are guiding you."']},
+  {x:82,y:122,kind:'merchant',name:'Herbalist Fenna',lines:['"Marsh mint for the stomach, glowcap for the dark, and leechroot for wounds. Do not mix them up."']},
+  {x:98,y:122,kind:'traveler',name:'Pilgrim Osric',lines:['"The old causeway runs beneath the city. At low water you can see its carved stones."']},
+  {x:260,y:279,kind:'guard',name:'Ironhollow Gate-Thane',lines:['"The Deep City is open to honest hands. Keep your pick away from the clan seals."']},
+  {x:254,y:282,kind:'smith',name:'Ore-Master Hilda',lines:['"The black veins carry star-iron. The red veins carry heat. The singing vein carries trouble."']},
+  {x:270,y:282,kind:'adventurer',name:'Tunnel Scout Keld',lines:['"There are galleries below the city that do not appear on any map. Something keeps moving the markers."']},
   {x:SALT.lx+2,y:SALT.ly+2,kind:'keeper',name:'Orsa the Lightkeeper',lines:['"Two hundred years this light has burned. Not once gone dark. Not on my watch."','"From up top I can see the whole coast. And the thing in the cove that keeps eating my nets."']},
   {x:SALT.sx-11,y:228,kind:'sailor',name:'Old Tam',lines:['"Best fishing is at the end of the dock. Worst company too, present company included."','"The pearls round here come from the marsh and the drowned. Don\'t ask me how they got there."']},
   {x:SALT.vx+12,y:231,kind:'netmender',name:'Net-mender Ysa',lines:['"Sirens tangled half my nets last night. Elder Maren wants something done."','"Saltmere was twice this size before the Queen woke."']},
@@ -869,7 +1136,7 @@ MAPS.world.npcs.push(
   {x:CX+55,y:CY+23,kind:'adventurer',name:'Sellsword',lines:['"Bring your loot to the alchemist or the forge. Raw parts are worth more crafted."','"The crypt under the cathedral is no place for the weak. I\'d know. I ran."']});
 for(const k in MAPS){const M=MAPS[k];M.h=M.tiles.length;M.w=M.tiles[0].length;M.npcs=M.npcs||[];
   if(!M.outdoor)M.tiles.forEach((r,y)=>{for(let x=0;x<r.length;x++)if(r[x]==='K')M.npcs.push({x,y,kind:M.keeper})})}
-const OUT_SOLID=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+');
+const OUT_SOLID=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q');
 const bossAt=(x,y)=>BOSSES.find(b=>(b.map||'world')===S.map&&b.x===x&&b.y===y&&!S.bossDown.includes(b.id));
 const IN_SOLID=new Set('#123456789 CKBQnbxsTcMWSPAYFGVLOHzuE~I');
 let BRK={};
@@ -1870,17 +2137,17 @@ function banditGroup(zn){const kind={tundra:['Frostreaver Scout','reaver'],volca
   return Array.from({length:n},(_,i)=>({id:'person',v:kind[1],n:kind[0]+(n>1?' '+(i+1):''),lv,hp:Math.round(28+lv*11),atk:Math.round(7+lv*2.3),def:Math.round(2+lv*.8),agi:9,xp,g}))}
 const mobAt=(x,y)=>MOBS.find(b=>b.x===x&&b.y===y&&b.map===S.map);
 function mobInfo(m){const M=MAPS[m];if(M.outdoor)return null;return M.enc?[',o=g',M.enc]:null}
-function mobEligible(m,x,y){const M=MAPS[m];if(M.outdoor){const z=ZONE[y]&&ZONE[y][x];const E=ENCZ[z];if(!E)return null;return E[0].includes(tileAt(m,x,y))?E[1]:null}
+function mobEligible(m,x,y){const M=MAPS[m];if(M.outdoor){if(isSafe(x,y))return null;const z=ZONE[y]&&ZONE[y][x];const E=ENCZ[z];if(!E)return null;return E[0].includes(tileAt(m,x,y))?E[1]:null}
   if(!M.enc)return null;return ',o=g'.includes(tileAt(m,x,y))?M.enc:null}
 function mobFree(mb,x,y){const M=MAPS[mb.map];if(x<1||y<1||x>=M.w-1||y>=M.h-1)return false;if(terrainSolid(mb.map,x,y))return false;
   if(S.map===mb.map&&P.x===x&&P.y===y)return false;if(npcAt(x,y)||bossAt(x,y))return false;if(MOBS.some(o=>o!==mb&&(o.x===x&&o.y===y||o.moving&&o.fx===x&&o.fy===y)))return false;
-  if(M.outdoor){const z=ZONE[y][x];if(z===1||z===6||z!==mb.zone)return false;const t=tileAt(mb.map,x,y);if(t==='V'||t==='Q')return false}else{const t=tileAt(mb.map,x,y);if('<>D'.includes(t))return false}
+  if(M.outdoor){const z=ZONE[y][x];if(z===1||z===6||z!==mb.zone||isSafe(x,y))return false;const t=tileAt(mb.map,x,y);if(t==='V'||t==='Q')return false}else{const t=tileAt(mb.map,x,y);if('<>D'.includes(t))return false}
   return true}
 function viewTiles(){const M=MAPS[S.map];const cw=Math.ceil(W/TS),ch=Math.ceil(H/TS);return [P.x-(cw>>1)-1,P.y-(ch>>1)-1,P.x+(cw>>1)+1,P.y+(ch>>1)+1]}
 function spawnCell(m,ci,cj,visible){const key=m+':'+ci+','+cj;const st=CELLS.get(key);if(st&&(st.live||!st.until||T<st.until||visible))return;
   const M=MAPS[m],x0=ci*CS,y0=cj*CS,el=[],road=[];
   for(let y=y0;y<y0+CS&&y<M.h;y++)for(let x=x0;x<x0+CS&&x<M.w;x++){const zn=mobEligible(m,x,y);if(zn)el.push([x,y,zn]);
-    else if(M.outdoor&&'=~B'.includes(tileAt(m,x,y))){const z=ZONE[y][x];if(z!==1&&z!==6&&ENCZ[z])road.push([x,y,ENCZ[z][1]])}}
+    else if(M.outdoor&&'=~B'.includes(tileAt(m,x,y))){const z=ZONE[y][x];if(z!==1&&z!==6&&ENCZ[z]&&!isSafe(x,y))road.push([x,y,ENCZ[z][1]])}}
   const groups=[];const dens=el.length/(CS*CS);
   if(el.length>=10){const p=M.outdoor?Math.min(.42,.08+dens*.38):.38;if(Math.random()<p)groups.push(pick(el));if(el.length>48&&Math.random()<p*.25)groups.push(pick(el))}
   if(road.length>=4&&M.outdoor&&Math.hypot(x0-OX-22,y0-OY-16)>26&&Math.hypot(x0-CX-31,y0-CY-24)>30&&Math.random()<.07)groups.push([...pick(road),1]);
@@ -2131,6 +2398,15 @@ function cliff(X,Y,x,y){const up=objAt('world',x,y-1)==='C';cx.fillStyle='#5f574
 function crystal(X,Y,x,y){const col=hash(x,y,5)<.5?['#7ff0e0','#3fb0b0']:['#c79cff','#8a5ac9'];cx.fillStyle='rgba(0,0,0,.25)';ell(X+16,Y+29,11,3);
   [[16,30,6,30],[9,30,4,18],[23,30,5,22]].forEach(([c1,by,w,h],i)=>{cx.fillStyle=col[i%2];cx.beginPath();cx.moveTo(X+c1-w,Y+by);cx.lineTo(X+c1-w*.6,Y+by-h);cx.lineTo(X+c1,Y+by-h-6);cx.lineTo(X+c1+w*.6,Y+by-h);cx.lineTo(X+c1+w,Y+by);cx.fill()});
   cx.fillStyle='rgba(255,255,255,.6)';cx.fillRect(X+15,Y+6,2,14)}
+function fortWall(X,Y,x,y,m){
+  const up=objAt(m,x,y-1)==='Q',right=objAt(m,x+1,y)==='Q',down=objAt(m,x,y+1)==='Q',left=objAt(m,x-1,y)==='Q';
+  cx.fillStyle='rgba(0,0,0,.28)';ell(X+16,Y+30,19,5);const base=Y+27,top=Y+1;
+  cx.fillStyle='#77736d';cx.fillRect(X+2,top,28,base-top);cx.fillStyle='#9b958a';cx.fillRect(X+2,top,28,4);cx.fillStyle='#5c5852';cx.fillRect(X+2,base-3,28,4);
+  cx.fillStyle='#625e58';for(let yy=top+8;yy<base-2;yy+=9){cx.fillRect(X+2,yy,28,1);cx.fillRect(X+15,yy-7,1,7)}
+  cx.fillStyle='#aaa397';for(let xx=X+2;xx<X+31;xx+=10)cx.fillRect(xx,top-3,6,7);
+  if(up||down){cx.fillStyle='#898278';cx.fillRect(X+11,top-2,10,base-top+3)}if(left||right){cx.fillStyle='#898278';cx.fillRect(X+2,top+9,28,12)}
+  cx.fillStyle='#4b4742';cx.fillRect(X+8,Y+10,3,7);cx.fillRect(X+21,Y+10,3,7);cx.fillStyle='#b2aa9c';cx.fillRect(X+3,top,26,2);
+}
 function ruinWall(X,Y,x,y){const h=10+hash(x,y,7)*16;cx.fillStyle='#857d72';cx.fillRect(X,Y+22-h,TS,h+10);cx.fillStyle='#6a6359';for(let r=0;r<4;r++)cx.fillRect(X,Y+30-r*8,TS,1);
   cx.fillRect(X+10,Y+22-h,1,h+10);cx.fillStyle='#9c9488';cx.fillRect(X,Y+22-h,TS,3);cx.fillStyle='#5f7a44';cx.fillRect(X+hash(x,y,8)*20,Y+26-h*.5,8,4)}
 function pillar(X,Y,x,y){const h=24+hash(x,y,9)*40;cx.fillStyle='rgba(0,0,0,.25)';ell(X+16,Y+29,12,4);cx.fillStyle='#8e877c';cx.fillRect(X+6,Y+26,20,6);cx.fillStyle='#a39c90';cx.fillRect(X+9,Y+28-h,14,h);
@@ -2422,7 +2698,7 @@ const mmc=document.createElement('canvas');mmc.width=WW;mmc.height=WH;const mmx=
 (function buildMinimap(){const col=(x,y)=>{const g=WORLD.ground[y][x],o=WORLD.obj[y][x],z=ZONE[y][x];
     if(g==='V')return '#0a0808';if(g==='w')return '#35699c';if(g==='*')return o==='1'?'#3f5f4a':o==='C'?'#9aa4ac':'#e8eef2';if(g==='i')return '#bfe0f0';if(g==='a')return o==='3'?'#1e1a1a':'#4a4244';if(g==='l')return '#e0602a';if(g==='D')return '#d9b56a';if(g==='h')return o==='T'?'#2f5a2a':'#7f8452';if(g==='o')return '#3c5a48';if(g==='B')return '#8a5a34';if(g==='s')return '#cbb683';if(g==='W'||o==='Z')return '#5f5850';
     if(g==='='||g==='~')return '#b39a6a';if(g==='#')return '#9a9286';if(o==='H'||o==='U')return '#a0522d';
-    if(o==='C')return '#5a544c';if(o==='K')return '#132016';if(o==='T'||o==='I')return '#2f5a2a';if(o==='X'||o==='p')return '#9c9488';
+    if(o==='C')return '#5a544c';if(o==='K')return '#132016';if(o==='T'||o==='I')return '#2f5a2a';if(o==='X'||o==='p'||o==='Q')return '#9c9488';
     return ['#5f8f40','#7d9a5a','#1f3322','#4f6238','#7a7064','#7e7686','#7d9a5a','#7d9a5a','#e8eef2','#4a4244','#cbb683','#7f8452'][z]};
   for(let y=0;y<WH;y++){let run=0,c0=col(0,y);for(let x=1;x<=WW;x++){const c=x<WW?col(x,y):null;if(c!==c0){mmx.fillStyle=c0;mmx.fillRect(x-run-1,y,run+1,1);run=0;c0=c}else run++}}})();
 function mapMarkers(){const out=[];
@@ -2533,6 +2809,7 @@ function drawObj(m,o,X,Y,x,y,night){switch(o){
   case 'C':{const u=objAt(m,x,y-1)==='C'?1:0,d=objAt(m,x,y+1)==='C'?1:0;sprite('C'+u+d+Math.floor(hash(x,y,3)*3),0,X,Y,(a,b)=>cliff(a,b,x,y));break}
   case 'c':sprite('c'+(hash(x,y,5)<.5?0:1),0,X,Y,(a,b)=>crystal(a,b,x,y));break;
   case 'X':sprite('X'+Math.floor(hash(x,y,7)*4),0,X,Y,(a,b)=>ruinWall(a,b,x,y));break;
+  case 'Q':sprite('Q'+(objAt(m,x,y-1)==='Q'?'u':'')+(objAt(m,x+1,y)==='Q'?'r':'')+(objAt(m,x,y+1)==='Q'?'d':'')+(objAt(m,x-1,y)==='Q'?'l':''),0,X,Y,(a,b)=>fortWall(a,b,x,y,m));break;
   case 'p':sprite('p'+Math.floor(hash(x,y,9)*4),0,X,Y,(a,b)=>pillar(a,b,x,y));break;
   case 'J':sprite('J'+Math.floor(hash(x,y,4)*4),0,X,Y,(a,b)=>grave(a,b,x,y));break;
   case '_':sprite('_',1,X,Y,(a,b)=>stump(a,b));break;
