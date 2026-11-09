@@ -19,6 +19,7 @@
 }
 [hidden]{display:none!important}
 html,body{background:var(--bg);color:var(--ink)}
+html{scrollbar-gutter:stable;overflow-y:scroll}
 body{margin:0}
 body{font-family:var(--body);font-size:17px;line-height:1.4;padding-block:14px 24px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
@@ -44,8 +45,8 @@ kbd{font-family:var(--sc);font-size:11px;color:var(--dim);border:1px solid #6b4c
   background:radial-gradient(circle at 38% 34%,#b8453a,#7a251c 70%);box-shadow:0 0 0 3px #5e1b14,inset 0 -3px 0 #5e1b14;line-height:1;text-align:center}
 .lvl .lbl{display:block;font-size:10px;color:#f3d9a8;letter-spacing:.12em}
 .lvl b{font-family:var(--sc);font-size:20px;color:#fbe7b8}
-.where{display:flex;flex-direction:column;gap:2px}
-#hPlace{font-family:var(--display);font-size:26px;line-height:1;color:var(--gold)}
+.where{display:flex;flex-direction:column;gap:2px;width:270px;min-width:0}
+#hPlace{font-family:var(--display);font-size:26px;line-height:1;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .time{font-family:var(--sc);font-size:12px;letter-spacing:.1em;display:inline-flex;align-items:center;gap:6px;text-transform:uppercase}
 .time::before{content:"";width:10px;height:10px;border-radius:50%}
 .time.day{color:var(--gold)} .time.day::before{background:var(--gold);box-shadow:0 0 6px var(--gold)}
@@ -65,7 +66,7 @@ kbd{font-family:var(--sc);font-size:11px;color:var(--dim);border:1px solid #6b4c
 .badge{position:absolute;top:-8px;right:-8px;background:var(--xp);color:#1b230a;font-size:11px;min-width:19px;height:19px;border-radius:10px;display:grid;place-items:center;padding:0 4px}
 
 /* Stage */
-.stage{position:relative;border:3px solid var(--line);box-shadow:inset 0 0 0 1px var(--trim),0 0 0 1px #0b0806;background:#000;line-height:0;border-radius:3px;overflow:hidden}
+.stage{aspect-ratio:4/3;position:relative;border:3px solid var(--line);box-shadow:inset 0 0 0 1px var(--trim),0 0 0 1px #0b0806;background:#000;line-height:0;border-radius:3px;overflow:hidden}
 canvas{width:100%;height:auto;display:block;touch-action:none}
 #fade{position:absolute;inset:0;background:#05040a;opacity:0;pointer-events:none;transition:opacity .4s}
 
@@ -277,12 +278,14 @@ function makeTown(){
   }
   return {ground:G.map(r=>r.join('')),obj:O.map(r=>r.join(''))};
 }
-const OFX0=200,OFY0=110,WS=1.5,OFX=Math.round(OFX0*WS),OFY=Math.round(OFY0*WS),WW=OFX*2+320,WH=OFY*2+180,DX=OFX-OFX0,DY=OFY-OFY0,OX=98+OFX,OY=74+OFY,TW=44,TH=32,CX=252+OFX,CY=66+OFY,CW=62,CH=48;
+/* Island frame: PX = ocean on the east/west sides, PT/PB = the long northern and southern frontier added past the old lands. */
+const PX=60,PT=440,PB=440,WSX=1.5,WSY=2;
+const OFX0=200,OFY0=110,OFX=PX+Math.round(OFX0*WSX),OFY=PT+Math.round(OFY0*WSY),WW=OFX*2+320,WH=OFY*2+180,DX=OFX-OFX0,DY=OFY-OFY0,OX=98+OFX,OY=74+OFY,TW=44,TH=32,CX=252+OFX,CY=66+OFY,CW=62,CH=48;
 /* World size: the lands around the old Hollowmere/Aldermoor core were stretched by WS.
    MX/MY convert an old (720x400) world coordinate into the new world. MP keeps a point
    at the same offset from the place it belongs to (anchor), so details stay attached. */
-const MX=x=>x<OFX0?Math.round(x*WS):x<OFX0+320?x+DX:Math.round(OFX+320+(x-OFX0-320)*WS);
-const MY=y=>y<OFY0?Math.round(y*WS):y<OFY0+180?y+DY:Math.round(OFY+180+(y-OFY0-180)*WS);
+const MX=x=>x<OFX0?PX+Math.round(x*WSX):x<OFX0+320?x+DX:Math.round(OFX+320+(x-OFX0-320)*WSX);
+const MY=y=>y<OFY0?PT+Math.round(y*WSY):y<OFY0+180?y+DY:Math.round(OFY+180+(y-OFY0-180)*WSY);
 let ANCH=[];
 function MP(x,y,r=18){let b=null,bd=r;for(const a of ANCH){if(!a.ox)continue;const d=Math.hypot(x-a.ox,y-a.oy);if(d<=bd){bd=d;b=a}}
   return b?[b.nx+(x-b.ox),b.ny+(y-b.oy)]:[MX(x),MY(y)]}
@@ -295,7 +298,18 @@ const SITES=[{id:'roost',n:"Dragon's Roost",x:288,y:24,r:11,dec:['R',.05],g:'.'}
 const RELIQ=[{x:288,y:19,il:24},{x:20,y:11,il:18},{x:24,y:157,il:21},{x:60,y:6,il:15},{x:306,y:10,il:20},{x:8,y:95,il:14},{x:300,y:172,il:19},{x:160,y:174,il:17}];
 /* New lands beyond the old borders (absolute world coordinates) */
 const NEWRELIQ=[{x:560,y:18,il:26},{x:150,y:62,il:24},{x:180,y:362,il:28},{x:540,y:340,il:27},{x:650,y:128,il:26},{x:90,y:130,il:22},{x:700,y:330,il:29}];
-const shoreX=y=>Math.round(34+(vnoise(0,y,14,251)-.5)*34);
+const shoreX=y=>Math.round(PX+34+(vnoise(0,y,14,251)-.5)*34);
+const eastBand=y=>Math.round(WW-PX+4+(vnoise(0,y,14,252)-.5)*30);
+/* The island: the old lands keep their coasts, and the frontier north and south tapers
+   into long curving peninsulas, so the whole island reads tall and narrow at the ends. */
+const BAND0=PT,BAND1=WH-PB;
+const spineC=y=>{if(y>=BAND0&&y<=BAND1)return WW/2;const north=y<BAND0,t=north?(BAND0-y)/PT:(y-BAND1)/PB;return WW/2+(north?-150*Math.sin(t*2.6):140*Math.sin(t*2.9))};
+const COW=new Int16Array(WH),COE=new Int16Array(WH);
+function buildCoast(){for(let y=0;y<WH;y++){const w=shoreX(y),e=eastBand(y);if(y>=BAND0&&y<=BAND1){COW[y]=w;COE[y]=e;continue}
+  const north=y<BAND0,t=north?(BAND0-y)/PT:(y-BAND1)/PB,tip=north?.93:.9,f=Math.max(0,1-t/tip);if(f<=0){COW[y]=1;COE[y]=0;continue}
+  const pf=Math.pow(f,north?.7:.8),a=Math.min(1,t*4),c=spineC(y);
+  const nw=1+((vnoise(0,y,22,403)-.5)*.55+(vnoise(0,y,6,404)-.5)*.14)*a,ne=1+((vnoise(0,y,22,405)-.5)*.55+(vnoise(0,y,6,406)-.5)*.14)*a;
+  COW[y]=Math.round(c-(WW/2-w)*pf*nw);COE[y]=Math.round(c+(e-WW/2)*pf*ne)}}
 const NBOSS=[
   {id:'titan',x:300,y:24,mon:'titan',n:'Ymrir the Frost Titan',lv:17,hp:1300,atk:74,def:26,agi:4,xp:3000,g:1700,drop:'frostheart',zone:'tundra',scale:.27,bscale:.9,
     line:'The glacier cracks open. A giant of blue ice unfolds, frost pouring from its eyes. "Warm blood. How rare."'},
@@ -697,10 +711,12 @@ function makeOld(){const WW=320,WH=180,OX=98,OY=74,CX=252,CY=66,ZONE=[];
 }
 /* Spread the new lands over the bigger world, give each city its own open ground,
    and push any landmark that would land on a city, the harbor or Saltmere out of the way. */
+/* Converts a position in the previous 920x510 world back to original land coordinates (used for cities and old saves). */
+const V4OLDX=x=>x<300?x/1.5:x<620?x-100:520+(x-620)/1.5,V4OLDY=y=>y<165?y/1.5:y<345?y-55:290+(y-345)/1.5;
 const CITYPOS={stormhaven:[116,352],sunspire:[656,300],emberwatch:[465,420],mirewatch:[135,175],ironhollow:[250,382]};
 const CAMPS0=[[334,80],[300,322],[140,190],[608,166]];
 function remapWorld(){
-  for(const p of PLACES){p.ox=p.x;p.oy=p.y;if(p.city){[p.x,p.y]=CITYPOS[p.city]}else{p.x=p.x===0?0:MX(p.x);p.y=MY(p.y)}}
+  for(const p of PLACES){p.ox=p.x;p.oy=p.y;if(p.city){const [qx,qy]=CITYPOS[p.city];[p.x,p.y]=[MX(V4OLDX(qx)),MY(V4OLDY(qy))]}else{p.x=p.x===0?0:MX(p.x);p.y=MY(p.y)}}
   const cities=PLACES.filter(p=>p.city),sm=PLACES.find(p=>p.city==='stormhaven');
   const boxes=[...cities.map(c=>[c.x-36,c.y-28,c.x+37,c.y+27,c.x,c.y]),[sm.x-40,sm.y+16,sm.x+8,sm.y+48,sm.x-16,sm.y+32],[0,sm.y+28,sm.x-30,sm.y+41,sm.x-60,sm.y+34],[0,205+DY,112,257+DY,40,231+DY]];
   const free=(x,y,r)=>!boxes.some(b=>x+r>=b[0]&&x-r<=b[2]&&y+r>=b[1]&&y-r<=b[3]);
@@ -717,7 +733,14 @@ function remapWorld(){
   for(const b of EXTRAB){const d=mp(b);b.door+=d}
   for(const R of NEWRELIQ)push(R,3);for(const g of GRIMS)if(g.id!=='drain')push(g,4);for(const q of CACHES)push(q,2);for(const L of LANDMARKS)push(L,3);for(const e of ELITES)push(e,8);
   setHarbor(sm.x,sm.y)}
-function makeWorld(){remapWorld();const old=makeOld();
+/* The long northern and southern frontier: two new peaks, two waystones, reliquaries and a camp at each end. */
+function addFrontier(){const at=(t,north,dx=0)=>{const y=Math.round(north?BAND0-PT*t:BAND1+PB*t);return [Math.round(spineC(y))+dx,y]};
+  const [nmx,nmy]=at(.45,1),[smx,smy]=at(.42,0);
+  MOUNTS.push({n:'Mount Hrimvald',x:nmx,y:nmy,R:24,pal:'snow',L:7,il:27,g:600},{n:'The Cinder Crown',x:smx,y:smy,R:22,pal:'basalt',L:7,il:29,g:650});
+  const [nwx,nwy]=at(.7,1,4),[swx,swy]=at(.66,0,-4);WAYS.push({id:'reach',n:'The Frozen Reach',x:nwx,y:nwy},{id:'tail',n:'The Cinder Tail',x:swx,y:swy});
+  const r1=at(.58,1,60),r2=at(.25,0,-80),r3=at(.15,1,-100),r4=at(.6,0,50);NEWRELIQ.push({x:r1[0],y:r1[1],il:28},{x:r2[0],y:r2[1],il:30},{x:r3[0],y:r3[1],il:26},{x:r4[0],y:r4[1],il:31});
+  const c1=at(.2,1,50),c2=at(.18,0,50);PLACES.push({n:'Rimeward Camp',x:c1[0],y:c1[1],r:8,b:'fcamp'},{n:'Ashfall Refuge',x:c2[0],y:c2[1],r:8,b:'fcamp'})}
+function makeWorld(){remapWorld();addFrontier();buildCoast();const old=makeOld();
   for(const s of SITES){s.x+=OFX;s.y+=OFY}for(const R of RELIQ){R.ox=R.x;R.oy=R.y;R.x+=OFX;R.y+=OFY}for(const b of BOSSES){b.x+=OFX;b.y+=OFY}
   {const so={...SIGNS};for(const k in SIGNS)delete SIGNS[k];for(const k in so){const [x,y]=k.split(',').map(Number);SIGNS[(x+OFX)+','+(y+OFY)]=so[k]}}
   const tq=NBOSS[1];tq.x=shoreX(tq.y)+7;NSITES[1].x=tq.x;const isl=GRIMS.find(g=>g.id==='renew');isl.x=Math.max(5,shoreX(isl.y)-12);NSITES[8].x=isl.x;
@@ -731,15 +754,16 @@ function makeWorld(){remapWorld();const old=makeOld();
     const ex=clamp(x,OFX,X1-1)-OFX,ey=clamp(y,OFY,Y1-1)-OFY;let oz=old.Z[ey][ex];if(oz===1||oz===6||oz===7)oz=0;
     if(Math.max(dn,dw)<7+n*24){ZONE[y][x]=oz;G[y][x]=BASE[oz];if(oz===2&&h<.24)O[y][x]='K';else if(oz===4&&h<.06)O[y][x]='R';else if(oz===0&&h<.03)O[y][x]='T';continue}
     ZONE[y][x]=z;
-    if(x<shoreX(y)){G[y][x]='w';continue}
+    if(x<COW[y]||x>COE[y]){G[y][x]='w';continue}
     if(z===11&&x<shoreX(y)+5){G[y][x]='s';if(h<.02)O[y][x]='R';continue}
+    if(Math.min(x-COW[y],COE[y]-x)<3&&z!==8&&z!==9){G[y][x]='s';continue}
     if(z===8){G[y][x]=vnoise(x,y,5,211)>.7?'i':'*';
       if(y<20+n*24&&vnoise(x,y,5,213)>.56)O[y][x]='C';else if(G[y][x]==='*'){if(vnoise(x,y,8,212)>.58&&h<.18)O[y][x]='1';else if(h<.022)O[y][x]='R';else if(h<.027)O[y][x]='c'}}
     else if(z===9){G[y][x]='a';if(vnoise(x,y,6,221)>.74)G[y][x]='l';else if(h<.03)O[y][x]='3';else if(h<.07)O[y][x]='R'}
     else if(z===10){G[y][x]=vnoise(x,y,4,231)>.5?'D':'s';if(h<.022)O[y][x]='2';else if(h<.03)O[y][x]='4';else if(h<.042)O[y][x]='R'}
     else{G[y][x]=vnoise(x,y,4,241)>.55?'v':'h';if(h<.03)O[y][x]='R';else if(h<.055&&G[y][x]==='h')O[y][x]='T'}}
   // lava river across the wastes
-  for(let x=60;x<WW-4;x++){const ly=Math.round(MY(350)+Math.sin(x/23)*9+Math.sin(x/7)*2);if(ZONE[ly][x]!==9)continue;for(const yy of [ly,ly+1]){G[yy][x]='l';O[yy][x]=' '}}
+  for(let x=60;x<WW-4;x++){const ly=Math.round(MY(350)+Math.sin(x/23)*9+Math.sin(x/7)*2);if(ZONE[ly][x]!==9)continue;for(const yy of [ly,ly+1]){if(G[yy][x]==='w')continue;G[yy][x]='l';O[yy][x]=' '}}
   // frozen lake
   {const fx=MX(435),fy=MY(46);for(let y=fy-16;y<fy+16;y++)for(let x=fx-35;x<fx+35;x++){const d=((x-fx)/26)**2+((y-fy)/11)**2+(vnoise(x,y,4,261)-.5)*.5;if(d<1&&ZONE[y][x]===8){G[y][x]='i';O[y][x]=' '}}}
   const clear=(cx0,cy0,r,g)=>{for(let y=cy0-r;y<=cy0+r;y++)for(let x=cx0-r;x<=cx0+r;x++)if(y>=0&&x>=0&&y<WH&&x<WW&&(x-cx0)**2+(y-cy0)**2<=r*r+1){O[y][x]=' ';if(g)G[y][x]=g}};
@@ -800,6 +824,7 @@ function makeWorld(){remapWorld();const old=makeOld();
     crater:p=>{disc(p.x,p.y,8,'g');ring(p.x,p.y,7,'R',.7);scat(p.x,p.y,6,'c',6,7);for(let y=p.y-1;y<=p.y+1;y++)for(let x=p.x-1;x<=p.x+1;x++)G[y][x]='u';put(p.x,p.y,'@')},
     hamlet:p=>{disc(p.x,p.y,13,'*');for(const b of EXTRAB){for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++){O[y][x]='H';G[y][x]='*'}O[b.y+b.h-1][b.door]='U'}
       put(p.x,p.y+1,'j');put(p.x-4,p.y+3,'+');put(p.x+5,p.y+3,'+');put(p.x+2,p.y+2,'l');for(const [x,y] of [[p.x-9,p.y-6],[p.x+12,p.y+4],[p.x-10,p.y+7]])put(x,y,'1')},
+    fcamp:p=>{disc(p.x,p.y,8);for(const [dx,dy] of [[-4,-3],[4,-3],[0,4]])put(p.x+dx,p.y+dy,'N');put(p.x,p.y,'j');put(p.x-2,p.y+1,'l');put(p.x+2,p.y+1,'l');put(p.x+5,p.y+2,'+');put(p.x-5,p.y+2,'x');put(p.x-6,p.y+2,'b')},
     totems:p=>{disc(p.x,p.y,7);for(let i=0;i<6;i++){const a=i/6*6.283;put(Math.round(p.x+Math.cos(a)*5),Math.round(p.y+Math.sin(a)*4),'!')}put(p.x,p.y,'j');scat(p.x,p.y,6,'4',2,8)},
     fort:p=>{const F=FORTS[p.f],w=10,h=8;disc(p.x,p.y,14,F.fl);
       // Broad stone courtyard and complete curtain wall with a guarded southern gate.
@@ -1093,7 +1118,7 @@ const SAFE=new Uint8Array(WW*WH);
 (function(){const rect=(x0,y0,x1,y1)=>{for(let y=Math.max(0,y0);y<=Math.min(WH-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(WW-1,x1);x++)SAFE[y*WW+x]=1};
   const circ=(cx,cy,r)=>rect(cx-r,cy-r,cx+r,cy+r);
   rect(OX-3,OY-3,OX+TW+2,OY+TH+2);rect(CX-3,CY-3,CX+CW+2,CY+CH+2);
-  for(const p of PLACES){if(p.b==='city')rect(p.x-31,p.y-23,p.x+32,p.y+22);else if(p.b==='hamlet')circ(p.x,p.y,15);else if(p.b==='nomads')circ(p.x,p.y,11)}
+  for(const p of PLACES){if(p.b==='city')rect(p.x-31,p.y-23,p.x+32,p.y+22);else if(p.b==='hamlet')circ(p.x,p.y,15);else if(p.b==='nomads')circ(p.x,p.y,11);else if(p.b==='fcamp')circ(p.x,p.y,10)}
   if(SALT.sx!=null)rect(SALT.sx-2,210+DY,SALT.vx+38,250+DY);rect(HARBOR.bx0-8,HARBOR.qy0,HARBOR.bx1+6,HARBOR.by1+3);if(SALT.lx!=null)circ(SALT.lx,SALT.ly,7);
   for(const [x,y,r] of [[...MP(600,150),11],[...MP(334,84),12],[...MP(300,322),11],[...MP(140,190),9],[437+DX,152+DY,6],[70+OFX,100+OFY,8]])circ(x,y,r)})();
 const isSafe=(x,y)=>x>=0&&y>=0&&x<WW&&y<WH&&SAFE[y*WW+x]===1;
@@ -1203,6 +1228,30 @@ MAPS.elder={name:"Elder Maren's Hut",outdoor:false,floor:'wood',stone:'#6d655a',
 "#.........#",
 "#b..rrr..x#",
 "#####D#####"],npcs:[{x:5,y:2,kind:'elder',name:'Elder Maren',lines:['"The sea gives and the sea takes. Lately it only takes."','"My grandmother saw the Tide Queen rise when she was a girl. Now I have seen it too."']}]};
+/* Homes and shops: locked buildings now open onto an interior with people to talk to and things to search. */
+const RESNAMES=['Agnes','Bertil','Corin','Dagny','Edric','Fenna','Gisla','Hamo','Ilsa','Jory','Kerra','Lorcan','Mabel','Nils','Odette','Perrin','Quill','Rowan','Sabine','Tobias','Una','Varo','Wynn','Yara','Brisk','Halla','Oswin','Tilde'];
+const RESLINES=['"Wipe your boots! I just swept."','"Mind the cat. She bites strangers. And friends."','"You look like you\'ve walked a long way. Sit, if you like."','"My cousin went off adventuring. Came back with one less ear and a lot of stories."',
+  '"The guild pays for monster parts, you know. Don\'t sell them cheap."','"If you\'re looking for work, ask around. Somebody always needs something done."','"We had wolves at the window last winter. Wolves!"','"Don\'t touch the stew. It\'s not ready. It\'s never ready."',
+  '"Be careful out past the walls after dark. Different things walk at night."','"I keep a bit of coin in the chest. Not that I\'m telling you. Forget I said that."','"The waystones? Touch one and it remembers you. Strange old magic."','"Rain\'s coming. My knee says so, and my knee is never wrong."',
+  '"There\'s a whole frozen country up north past the tundra, and fire to the south. Nobody goes. Well. Almost nobody."','"Do come again. But knock first."'];
+const HOMEPLACE=b=>b.city?{stormhaven:'Stormhaven',sunspire:'Sunspire',emberwatch:'Emberwatch',mirewatch:'Mirewatch',ironhollow:'Ironhollow'}[b.city]:b.x>=CX-6&&b.x<CX+CW+6&&b.y>=CY-6&&b.y<CY+CH+6?'Aldermoor':b.x>=OX-6&&b.x<OX+TW+6&&b.y>=OY-6&&b.y<OY+TH+6?'Hollowmere':Math.abs(b.y-(230+DY))<30&&b.x<SALT.vx+40?'Saltmere':'Frostwind';
+function genHome(b,i){const r=k=>hash(b.x,b.y,k+i*7),shop=b.kind==='shop',inn=b.kind==='inn',w=r(1)<.5?12:14,h=10,g=[];
+  for(let y=0;y<h;y++){g.push([]);for(let x=0;x<w;x++)g[y].push(x===0||y===0||x===w-1||y===h-1?'#':'.')}
+  const pat=['4#5#','#4#4','45#'][Math.floor(r(2)*3)];for(let x=1;x<w-1;x++)g[0][x]=pat[(x-1)%pat.length];g[h-1][6]='D';
+  const place=HOMEPLACE(b),empty=/Gone|Out hunting|away|out gathering|note|Nobody/i.test(b.msg||''),npcs=[],nm=k=>RESNAMES[Math.floor(r(k)*RESNAMES.length)];
+  const res=(x,y,k)=>{const a=RESLINES[Math.floor(r(k+2)*RESLINES.length)],c=RESLINES[Math.floor(r(k+3)*RESLINES.length)];npcs.push({x,y,kind:'res'+Math.floor(r(k)*6),name:nm(k+1),lines:a===c?[a]:[a,c]})};
+  let name,keeper;
+  if(shop){name=['The Brass Kettle','Odds and Ends','The Copper Pot','Sundries','The Lucky Sack','The Crooked Shelf','Goods and Wares'][Math.floor(r(3)*7)]+' ('+place+')';keeper='shopkeep';
+    for(let x=3;x<=8;x++)g[3][x]='C';g[2][5]='K';g[0][2]='1';g[0][3]='2';g[0][w-3]='3';g[1][1]='b';g[2][1]='x';g[1][w-2]='x';g[2][w-2]='b';g[7][1]='b';g[7][w-2]='s';g[8][w-2]='H';
+    for(let y=6;y<=7;y++)for(let x=5;x<=7;x++)g[y][x]='r';if(r(5)<.6)res(9,6,10)}
+  else if(inn){name=['The Warm Hearth','The Last Lantern','The Sleepy Ox'][Math.floor(r(3)*3)]+' ('+place+')';keeper='innkeeper';
+    for(let x=1;x<=4;x++)g[3][x]='C';g[2][2]='K';g[0][w-4]=g[0][w-3]='7';for(const bx of [w-2,w-4]){g[1][bx]='B';g[2][bx]='Q'}
+    g[6][8]='T';g[6][7]='c';g[6][9]='c';g[8][1]='b';g[8][w-2]='H';res(4,6,10);if(r(6)<.5)res(10,7,20)}
+  else{name=nm(9)+"'s House ("+place+')';g[0][w-4]=g[0][w-3]='7';g[1][1]='B';g[2][1]='Q';if(w>12||r(7)<.5){g[1][3]='B';g[2][3]='Q'}g[1][w-2]='n';
+    g[5][8]='T';g[5][7]='c';g[5][9]='c';for(let y=6;y<=7;y++)for(let x=5;x<=7;x++)g[y][x]='r';g[8][1]='b';g[7][w-2]='x';g[8][w-2]='H';if(r(8)<.5)g[8][2]='s';
+    if(!empty){res(4,5,10);if(r(6)<.55)res(w-3,6,20)}}
+  return {name,outdoor:false,floor:'wood',stone:'#6d655a',mortar:'#4f493f',keeper,tiles:g.map(q=>q.join('')),npcs}}
+BUILDINGS.forEach((b,i)=>{if(b.to||/Closed for/.test(b.msg||''))return;const id='home'+i;MAPS[id]=genHome(b,i);b.to={map:id,x:6,y:8}});
 for(const b of BUILDINGS)if(b.to)MAPS[b.to.map].exit={x:b.door,y:b.y+b.h};
 MAPS.world.npcs.push(
   {...MPo(116,219),kind:'guard',name:'Stormhaven Gate Captain',lines:['"Welcome to Stormhaven, free port of the western coast. Keep your steel sheathed and your coin purse close."','"The harbor council keeps the peace. The tide keeps the rest."']},
@@ -1250,6 +1299,9 @@ MAPS.world.npcs.push(
   {x:CX+26,y:CY+18,kind:'bard',name:'Street Minstrel',lines:['"Spare a coin for a song? No? Then here\'s a free one: the sewer grate is in the market. Don\'t say I warned you!"']},
   {x:CX+36,y:CY+17,kind:'noble',name:'Lady Corvina',lines:['"Hmph. Mud on your boots. How rustic."','"The Gilded Goose serves the only drinkable wine in the realm."']},
   {x:CX+55,y:CY+23,kind:'adventurer',name:'Sellsword',lines:['"Bring your loot to the alchemist or the forge. Raw parts are worth more crafted."','"The crypt under the cathedral is no place for the weak. I\'d know. I ran."']});
+{const c1=PLACES.find(p=>p.n==='Rimeward Camp'),c2=PLACES.find(p=>p.n==='Ashfall Refuge');MAPS.world.npcs.push(
+  {x:c1.x+1,y:c1.y+2,kind:'ranger',name:'Ranger Sola',lines:['"Welcome to the Frozen Reach. Nobody mapped it, so I\'m doing it myself."','"Mount Hrimvald is south of camp. There\'s a cache at the top, if you can stand the wind."','"The waystone at the far tip will bring you back here any time."']},
+  {x:c2.x+1,y:c2.y+2,kind:'pilgrim',name:'Pilgrim Dov',lines:['"The Cinder Tail runs all the way to the sea. I walk it every year. My feet hate me."','"The Cinder Crown is the tallest peak in the south. Pilgrims leave coins at the summit."','"Stay off the bright rock. It is not rock."']})}
 for(const k in MAPS){const M=MAPS[k];M.h=M.tiles.length;M.w=M.tiles[0].length;M.npcs=M.npcs||[];
   if(!M.outdoor)M.tiles.forEach((r,y)=>{for(let x=0;x<r.length;x++)if(r[x]==='K')M.npcs.push({x,y,kind:M.keeper})})}
 const OUT_SOLID=new Set('TKZOPLkbxFhHUqRYCcXpJNjlVeAIG_12356789&0^*%!@+Q£øç');
@@ -1750,6 +1802,33 @@ const PEOPLE={
   djinn:{skin:'#4a7ad0',hair:'#1a1410',robe:1,top:'#6a2a9a',stole:'#e0b040',hat:'hood',hatc:'#e0b040'},
   dwarfghost:{skin:'#b8d0c0',hair:'#c8e0d0',beard:'#c8e0d0',top:'#7a9a8a',legs:'#5a6a64',hat:'helm',child:1}};
 
+Object.assign(PEOPLE,{res0:{skin:'#e8c4a0',hair:'#6b4426',top:'#7a5a3a',legs:'#4a3a2a',apron:'#e8e0cc'},res1:{skin:'#d9a77c',hair:'#2a1a10',beard:'#2a1a10',top:'#3f5f7a',legs:'#3a2e2a'},
+  res2:{skin:'#f0caa4',hair:'#c9a35e',robe:1,top:'#8a4a6a',shawl:'#d8c8a0'},res3:{skin:'#a8724a',hair:'#1a1410',top:'#5a7a3a',legs:'#4a3a2a',hat:'cap',hatc:'#8a6a3a'},
+  res4:{skin:'#e0b48a',hair:'#d8d4cc',robe:1,top:'#4a5a6a',shawl:'#8a6a4a'},res5:{skin:'#f1c9a0',hair:'#8a5a2a',top:'#b8502a',legs:'#4a3a2a',child:1},
+  shopkeep:{skin:'#e0b48a',hair:'#5a3a20',top:'#6b4f7a',apron:'#e8e0cc',legs:'#3a2e2a'},
+  ranger:{skin:'#e8c4a0',hair:'#d9822b',top:'#3f5a4a',legs:'#3a2e2a',hat:'hood',hatc:'#e8eef2',cloak:'#6b7a8a',bow:1},pilgrim:{skin:'#c98e66',robe:1,top:'#5a4a3a',stole:'#ff8a2a',hat:'hood',hatc:'#3a2a20'}});
+VENDORS.shopkeep={title:'The Shopkeeper',short:'the shopkeeper',greet:'"Come in, come in! A little of everything, and fair prices on most of it."',supplies:['potion','hipotion','ether','smoke','arrow','roast'],gear:1};
+GSTOCK.shopkeep=['sword','dagger','axe','bow','shield','leather','helm','boots'];
+Object.assign(GIVERN,{netmender:'Net-mender Ysa in Saltmere',sailor:'Brann at the Salty Gull (or any sailor on the docks)',skald:'Sigrun the Skald in Frostwind Hamlet',shaman:'Kesta at the Aurora Totems',chieftain:'Sheikha Nour at the Banu Zahir camp',
+  ghost:'Father Odran at the Drowned Chapel',dwarfghost:"Thrain's Shade in Khaz Dural",djinn:"Zephyrah at the Djinn's Lamp",noble:'Lady Corvina in Aldermoor',bard:'Lute the Bard at the Gilded Goose',garrick:'Old Garrick in Aldermoor',
+  ranger:'Ranger Sola at Rimeward Camp in the Frozen Reach',pilgrim:'Pilgrim Dov at Ashfall Refuge in the Cinder Tail'});
+Object.assign(QUESTS,{
+  nets:{giver:'netmender',title:'Tangled Nets',need:{item:'feather',n:5},reward:{gold:180,hipotion:2},offer:'"I need feathers to make floats for the new nets. Siren and harpy feathers both work. Five, please."',ready:'"Lovely. These will float for years."',desc:'Collect 5 feathers from Sirens on the Stormcoast or Harpies in the Ashen Crags.'},
+  hags:{giver:'sailor',title:'Hags of the Reef',need:{kill:'seahag',n:3,label:'Sea Hags slain'},reward:{gold:320,stat:{vit:2}},offer:'"Three sea hags curse every boat that leaves Saltmere. Put them down and I\'ll buy you a drink. And something better than a drink."',ready:'"Ha! The sea feels lighter already."',desc:'Defeat 3 Sea Hags along the Stormcoast.'},
+  saga:{giver:'skald',title:'A Saga Worth Singing',need:{kill:'yeti',n:4,label:'Yetis slain'},reward:{gold:300,xp:420},offer:'"My saga needs a hero. Kill four yetis and I will put you in verse twenty-one."',ready:'"Verse twenty-one is yours! It rhymes \'yeti\' with \'sweaty\'. Art is hard."',desc:'Defeat 4 Yetis in the Frostpeak Tundra.'},
+  ancestors:{giver:'shaman',title:'Restless Ancestors',need:{kill:'icewraith',n:5,label:'Ice Wraiths laid to rest'},reward:{gold:260,stat:{int:2}},offer:'"Ice wraiths wander the snow at night. They were people once. Free five of them."',ready:'"The totems are quiet. They thank you, and so do I."',desc:'Defeat 5 Ice Wraiths in the tundra at night.'},
+  stingers:{giver:'chieftain',title:'Stingers in the Sand',need:{kill:'scorpion',n:6,label:'Sand Scorpions slain'},reward:{gold:320,stat:{agi:2}},offer:'"Scorpions have found our camels. Six of them must die before the next caravan."',ready:'"Our camels will sleep easy. You are family for three more days."',desc:'Defeat 6 Sand Scorpions in the Sunscorch Desert.'},
+  drowned:{giver:'ghost',title:'Rest for the Drowned',need:{kill:'drowned',n:6,label:'Drowned Sailors laid to rest'},reward:{gold:280,xp:450},offer:'"My flock walks the shore at night, dripping and lost. Give six of them peace."',ready:'"I heard them stop singing. Thank you, child."',desc:'Defeat 6 Drowned Sailors on the Stormcoast at night.'},
+  forge:{giver:'dwarfghost',title:'Fire for the Cold Forge',need:{item:'obsidian',n:6},reward:{gold:400,stat:{str:2,def:2}},offer:'"Bring six pieces of obsidian. I want to see the forge glow once more before I fade."',ready:'"Look at it burn! That is the color of my clan."',desc:'Collect 6 Obsidian from golems, rocks in the crags, or Magma Golems.'},
+  wish:{giver:'djinn',title:'A Wish in a Cup',need:{item:'chalice',n:2},reward:{gold:450,stat:{int:3}},offer:'"I used to grant wishes. Now I collect cups. Bring me two silver chalices and I\'ll grant you a small wish. A very small one."',ready:'"Shiny! Your wish is granted: you are now slightly cleverer."',desc:'Find 2 Silver Chalices. They turn up in ruins, crypts, tombs and on the coast.'},
+  rings:{giver:'noble',title:"Lady Corvina's Rings",need:{item:'ring',n:2},reward:{gold:220,ether:3},offer:'"My rings were stolen by those dreadful ghouls. Bring two back. Any two. I won\'t be able to tell."',ready:'"Tarnished, but mine. Probably. Here, for your trouble."',desc:'Collect 2 Tarnished Rings. Ghouls in the ruins often carry them.'},
+  ballad:{giver:'bard',title:'A Ballad of Harpies',need:{kill:'harpy',n:5,label:'Harpies slain'},reward:{gold:160,xp:260},offer:'"I need inspiration! Go fight five harpies in the crags and tell me everything."',ready:'"Wonderful! Terrible! I\'ll call it \'The Feathered Fury\'."',desc:'Defeat 5 Harpies in the Ashen Crags.'},
+  grudge:{giver:'garrick',title:"An Old Soldier's Grudge",need:{kill:'skeleton',n:8,label:'Skeletons broken'},reward:{gold:200,stat:{def:2}},offer:'"Forty years I fought the dead. My knees are done, but my grudge isn\'t. Break eight skeletons for me."',ready:'"Good. Now let me show you how to take a hit properly."',desc:'Defeat 8 Skeletons. They walk at night and haunt the ruins and crypt.'},
+  reach:{giver:'ranger',title:'Wolves of the Reach',need:{kill:'frostwolf',n:8,label:'Frost Wolves slain'},reward:{gold:500,xp:700},offer:'"The wolves up here have never seen a person. They think we\'re food. Teach eight of them otherwise."',ready:'"The pack is thinner. Good. Now I can map in peace."',desc:'Defeat 8 Frost Wolves in the Frozen Reach.'},
+  yetis:{giver:'ranger',req:'reach',title:'Yeti Country',need:{kill:'yeti',n:6,label:'Yetis slain'},reward:{gold:600,stat:{vit:3}},offer:'"Six yetis have been tearing up my survey markers. Deal with them."',ready:'"My markers are safe. You\'re tougher than you look."',desc:'Defeat 6 Yetis in the far north.'},
+  walking:{giver:'pilgrim',title:'Walking Fire',need:{kill:'magmagolem',n:5,label:'Magma Golems toppled'},reward:{gold:550,xp:750},offer:'"Magma golems block the pilgrim path. Topple five and the road is open again."',ready:'"The path is clear. The mountain will remember you."',desc:'Defeat 5 Magma Golems in the Cinder Tail or Emberfall Wastes.'},
+  lights:{giver:'pilgrim',req:'walking',title:'Lights on the Ash',need:{kill:'flamewisp',n:6,label:'Flame Wisps snuffed'},reward:{gold:600,stat:{int:3}},offer:'"Flame wisps lure pilgrims off the path into the lava. Snuff out six of them."',ready:'"No more false lights. Bless you."',desc:'Defeat 6 Flame Wisps in the south.'}});
+QORDER.push('nets','hags','saga','ancestors','stingers','drowned','forge','wish','rings','ballad','grudge','reach','yetis','walking','lights');
 /* =================== STATE =================== */
 // DEV mode uses its own save slot. Normal characters continue using the original save key.
 const DEV=/[?&]dev(?:[=&]|$)/i.test(location.search);
@@ -1773,20 +1852,21 @@ function load(){
     if(s.map==='town'){n.map='world';n.x=s.x+OX;n.y=s.y+OY}else if(s.map==='field'||!MAPS[s.map]){n.map='world';n.x=OX+46;n.y=OY+15}return n}}catch(e){}
   try{const o=JSON.parse(localStorage.getItem(OLD));if(o&&o.st){const s=NEW();['lv','xp','gold','hp','mp','st','pts','bag','wpn','arm','time','kills'].forEach(k=>{if(o[k]!==undefined)s[k]=o[k]});return s}}catch(e){}
   return null}
-let fresh=false, S=load(); if(!S){S=NEW();S.wv=4;S.map='inn';S.x=6;S.y=12;S.dir='up';fresh=true}
+let fresh=false, S=load(); if(!S){S=NEW();S.wv=5;S.map='inn';S.x=6;S.y=12;S.dir='up';fresh=true}
 if(S.min===undefined){S.min=S.time==='night'?21*60:8*60;S.day=S.day||0}
 S.bag=Object.assign({potion:0,hipotion:0,ether:0,elixir:0,flask:0,smoke:0},S.bag);initGear();S.broken=S.broken||{};S.ko=S.ko||[];
-if(S.wv!==3){const scaled=S.wv===2,mv=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);return k.slice(0,i+1)+(x+OFX)+','+(y+OFY)};
+if(!S.wv||S.wv<3){const scaled=S.wv===2,mv=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);return k.slice(0,i+1)+(x+OFX)+','+(y+OFY)};
   if(S.map==='world'){if(scaled){S.x=OX+7;S.y=OY+11}else{S.x+=OFX;S.y+=OFY}}
   const nb={};for(const k in S.broken){if(!k.startsWith('world:'))nb[k]=S.broken[k];else if(!scaled)nb[mv(k)]=S.broken[k]}S.broken=nb;
   S.relics=(S.relics||[]).map(id=>{const R=RELIQ.find(r=>r.ox!==undefined&&(scaled?Math.round(r.ox*Math.sqrt(5))+','+Math.round(r.oy*Math.sqrt(5)):r.ox+','+r.oy)===id);return R?R.x+','+R.y:id});
-  S.searched=(S.searched||[]).map(String).filter(k=>!(scaled&&k.startsWith('world:'))).map(k=>!scaled&&k.startsWith('world:')?mv(k):k);S.wv=4}
-if(S.wv===3){// the world got bigger: move the saved position and per-tile records onto the new map
-  const mk=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);const [a,b]=MP(x,y);return k.slice(0,i+1)+a+','+b};
-  if(S.map==='world'){const [a,b]=MP(S.x,S.y);S.x=a;S.y=b}
+  S.searched=(S.searched||[]).map(String).filter(k=>!(scaled&&k.startsWith('world:'))).map(k=>!scaled&&k.startsWith('world:')?mv(k):k);S.wv=5}
+if(S.wv===3||S.wv===4){// the world became a tall island: move the saved position and per-tile records onto the new map
+  const v4=(x,y)=>MP(V4OLDX(x),V4OLDY(y)).map(Math.round),mk=k=>{const i=k.lastIndexOf(':'),[x,y]=k.slice(i+1).split(',').map(Number);const [a,b]=v4(x,y);return k.slice(0,i+1)+a+','+b};
+  if(S.map==='world'){[S.x,S.y]=v4(S.x,S.y)}
   const nb={};for(const k in S.broken)nb[k.startsWith('world:')?mk(k):k]=S.broken[k];S.broken=nb;
   S.searched=(S.searched||[]).map(String).map(k=>k.startsWith('world:')?mk(k):k);
-  S.relics=(S.relics||[]).map(id=>{const R=RELIQ.find(r=>(r.v3||(r.ox!==undefined?(r.ox+OFX0)+','+(r.oy+OFY0):''))===id);return R?R.x+','+R.y:id});S.wv=4}
+  const near=(L,id)=>{const [x,y]=String(id).split(',').map(Number),[a,b]=v4(x,y);let best=null,bd=16;for(const q of L){const d=Math.hypot(q.x-a,q.y-b);if(d<bd){bd=d;best=q}}return best?best.x+','+best.y:id};
+  S.relics=(S.relics||[]).map(id=>near(RELIQ,id));S.caches=(S.caches||[]).map(id=>near(CACHES,id));S.wv=5}
 let ULTNEW=false;if(!S.ult){S.ult=1;grantUltimate();ULTNEW=true}
 if(!S.hp){S.hp=maxHP();S.mp=maxMP()}
 const P={x:S.x,y:S.y,fx:S.x,fy:S.y,t:1,moving:false,dir:S.dir,step:0,enc:0};
@@ -1803,7 +1883,7 @@ function areaName(){if(S.map!=='world')return MAPS[S.map].name;const z=ZONE[P.y]
    for(const c of PLACES)if(c.b==='city'&&Math.abs(P.x-c.x)<=28&&Math.abs(P.y-c.y)<=19)return c.n.split(',')[0];
    if(P.x>=HARBOR.bx0-3&&P.x<=HARBOR.bx1+4&&P.y>=HARBOR.qy0&&P.y<=HARBOR.by1)return 'Stormhaven Harbor'}
   if(z===7){let b=SITES[0],bd=1e9;for(const st of SITES){const d=Math.hypot(P.x-st.x,P.y-st.y);if(d<bd){bd=d;b=st}}return b.n}
-  if(z>=8){for(const st of NSITES)if(Math.hypot(P.x-st.x,P.y-st.y)<st.r)return st.n;return ['Frostpeak Tundra','Emberfall Wastes','Sunscorch Desert','The Stormcoast'][z-8]}
+  if(z>=8){for(const st of NSITES)if(Math.hypot(P.x-st.x,P.y-st.y)<st.r)return st.n;if(z===8&&P.y<BAND0-25)return 'The Frozen Reach';if(z===9&&P.y>BAND1+25)return 'The Cinder Tail';return ['Frostpeak Tundra','Emberfall Wastes','Sunscorch Desert','The Stormcoast'][z-8]}
   if(z===0){if(P.x>176+OFX&&P.y<62+OFY&&P.y>=OFY&&P.x<320+OFX)return 'Mirror Lake';if(Math.hypot(P.x-70-OFX,P.y-100-OFY)<8)return "Hunter's Camp";if(P.x>=102+OFX&&P.x<=142+OFX&&P.y>=106+OFY&&P.y<=118+OFY)return 'Hollowmere Farms';return 'Open Fields'}
   return ['Open Fields','Hollowmere','The Darkwood','Murkfen Marsh','Ashen Crags','Ruins of Varn','Aldermoor'][z]}
 function checkArea(){const n=areaName();if(n!==lastArea){const first=!lastArea;lastArea=n;hud();if(!first&&(S.map==='world'||MAPS[S.map].enc))AREA={name:n,t:2.6}}}
@@ -2070,7 +2150,7 @@ function openStats(){
   },a=>{
     if(a.startsWith('add:')&&S.pts>0){const k=a.slice(4);S.st[k]++;S.pts--;if(k==='vit')S.hp+=6;if(k==='int')S.mp+=4;save();hud()}
     if(a==='reset')confirmReset=true;if(a==='noreset')confirmReset=false;
-    if(a==='doreset'){S=NEW();S.wv=3;S.ult=1;initGear();grantUltimate();S.hp=maxHP();S.mp=maxMP();S.map='inn';placePlayer(6,12,'up');MOBS=[];CELLS.clear();save();checkArea();hud();closeModal();openIntro();return false}
+    if(a==='doreset'){S=NEW();S.wv=5;S.ult=1;initGear();grantUltimate();S.hp=maxHP();S.mp=maxMP();S.map='inn';placePlayer(6,12,'up');MOBS=[];CELLS.clear();save();checkArea();hud();closeModal();openIntro();return false}
   });
 }
 const useRow=(n,d,q,a,dis)=>`<div class="item"><div><b>${n}</b><small>${d}</small></div><span class="price">×${q}</span><button class="btn sm" data-a="${a}" ${dis?'disabled':''}>Use</button></div>`;
@@ -2833,6 +2913,7 @@ function mapMarkers(){const out=[];
   return out}
 let MZ=1,MCX=WW/2,MCY=WH/2,MBTN=[];
 const MAPLBL=()=>{const o=(t,a,b2)=>[t,a+OFX,b2+OFY];return [
+  ['The Frozen Reach',spineC(BAND0-PT*.35),BAND0-PT*.35,0],['The Cinder Tail',spineC(BAND1+PB*.35),BAND1+PB*.35,0],['Mount Hrimvald',MOUNTS[MOUNTS.length-2].x,MOUNTS[MOUNTS.length-2].y+30,1],['The Cinder Crown',MOUNTS[MOUNTS.length-1].x,MOUNTS[MOUNTS.length-1].y+28,1],
   ['Frostpeak Tundra',MX(430),MY(70),0],['The Stormcoast',MX(80),MY(250),0],['Sunscorch Desert',MX(650),MY(215),0],['Emberfall Wastes',MX(470),MY(328),0],['Hollowmere',OX+22,OY-4,0],['Aldermoor',CX+31,CY-6,0],
   ...[o("Dragon's Roost",288,10),o('Tomb of Malgorath',40,6),o('Sunken Sanctum',40,172),o('The Darkwood',50,46),o('Murkfen Marsh',52,128),o('Ashen Crags',200,148),o('Ruins of Varn',150,22),o('Mirror Lake',205,40),o('Open Fields',170,110)].map(q=>[...q,1]),
   ['Saltmere',SALT.vx+18,246+DY,1],['Oasis of Qadim',...MP(600,138),1],['Wolfsbane Camp',...MP(334,92),1],['Ashwalker Camp',...MP(300,334),1],
@@ -4198,7 +4279,7 @@ for(const k in MAPS)MAPS[k].npcs.forEach((n,i)=>{n.id=n.id||k+':'+i+':'+(n.name|
 S.alert=S.alert||{};
 snapNPCs();
 rebuildBroken();hud();requestAnimationFrame(frame);
-if(fresh){S.wv=3;openIntro()}else if(ULTNEW)setTimeout(()=>toast('Ultimate gear added to your satchel. Press B to try it on.'),600);
+if(fresh){S.wv=5;openIntro()}else if(ULTNEW)setTimeout(()=>toast('Ultimate gear added to your satchel. Press B to try it on.'),600);
 
 /* =================== PAINTED-MAP ART STYLE ===================
    Soft mottled ground with no tile grid, pale stone roads, deep-to-shallow
